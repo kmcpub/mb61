@@ -16,7 +16,7 @@ const initAudio = () => {
 const playSound = (type: 'click' | 'correct' | 'wrong' | 'tick' | 'tada' | 'countdown' | 'input_whole' | 'input_num' | 'input_den' | 'backspace', isStart?: boolean, isUrgent?: boolean) => {
   if (!audioCtx) initAudio();
   if (!audioCtx) return;
-  
+
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
@@ -25,11 +25,12 @@ const playSound = (type: 'click' | 'correct' | 'wrong' | 'tick' | 'tada' | 'coun
   const now = audioCtx.currentTime;
   
   if (type === 'click') {
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.05);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    // New click: A crisp, short mechanical tap
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
   } else if (type === 'correct') {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(523.25, now);
@@ -74,26 +75,31 @@ const playSound = (type: 'click' | 'correct' | 'wrong' | 'tick' | 'tada' | 'coun
     gain.gain.setValueAtTime(isUrgent ? 0.6 : 0.3, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
   } else if (type === 'input_whole') {
+    // New input_whole: Soft high-pitched blip
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, now);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    osc.frequency.setValueAtTime(950, now);
+    osc.frequency.exponentialRampToValueAtTime(1100, now + 0.04);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
   } else if (type === 'input_num') {
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(700, now);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    // New input_num: Soft mid-pitched pluck
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(850, now);
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
   } else if (type === 'input_den') {
+    // New input_den: Soft low-pitched resonant thump
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(500, now);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    osc.frequency.setValueAtTime(450, now);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
   } else if (type === 'backspace') {
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    // New backspace: Short descending sweep
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(350, now);
+    osc.frequency.exponentialRampToValueAtTime(150, now + 0.06);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
   }
   
   osc.start(now);
