@@ -1,0 +1,5 @@
+{
+  "name": "대분수 ÷ 자연수 배틀",
+  "description": "전자칠판에서 1~8명이 동시에 즐길 수 있는 대분수 나누기 자연수 연산 배틀 게임입니다.",
+  "requestFramePermissions": []
+}
