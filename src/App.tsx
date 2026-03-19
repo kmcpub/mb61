@@ -154,7 +154,7 @@ const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, 
   HIDE_RANDOM: { name: '랜덤 가리기', emoji: '🌫️', color: 'text-gray-400', duration: 10 },
   HIDE_OTHERS: { name: '나 빼고 가리기', emoji: '🌫️🌫️', color: 'text-gray-300', duration: 10 },
   HIDE_SELF: { name: '나 가리기', emoji: '💀', color: 'text-red-500', duration: 10 },
-  SHIELD: { name: '방어막', emoji: '🛡️', color: 'text-blue-400', duration: 10 },
+  SHIELD: { name: '방어막', emoji: '🛡️', color: 'text-blue-400', duration: 20 },
 };
 
 type ActiveItem = {
@@ -906,7 +906,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
 const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }: { activePlayers: ActivePlayer[]; duration: number; options: GameOptions; mode: GameMode; onEnd: (scores: Record<number, number>) => void, isPaused?: boolean }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
   const [scores, setScores] = useState<Record<number, number>>({});
-  const [attacks, setAttacks] = useState<Record<number, number>>({}); // id -> seconds left
+  const [attacks, setAttacks] = useState<Record<number, { duration: number, attackerId: number }>>({}); // id -> {seconds left, attackerId}
   const [activeBuffs, setActiveBuffs] = useState<Record<number, ActiveItem[]>>({});
 
   useEffect(() => {
@@ -917,8 +917,8 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
         let changed = false;
         Object.keys(next).forEach(id => {
           const nid = parseInt(id);
-          if (next[nid] > 0) {
-            next[nid] = next[nid] - 1;
+          if (next[nid] && next[nid].duration > 0) {
+            next[nid] = { ...next[nid], duration: next[nid].duration - 1 };
             changed = true;
           }
         });
@@ -1021,7 +1021,45 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
 
   const handleWrong = useCallback((id: number) => {
     setScores(prev => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) - 1) }));
-  }, []);
+    
+    const player = activePlayers.find(p => p.id === id);
+    if (!player) return;
+
+    // Clear buffs for player/team
+    const targets = mode === 'TEAM' && player.team > 0
+      ? activePlayers.filter(p => p.team === player.team).map(p => p.id)
+      : [id];
+
+    setActiveBuffs(prev => {
+      const next = { ...prev };
+      targets.forEach(tid => {
+        next[tid] = []; // Clear all buffs
+      });
+      return next;
+    });
+
+    // Clear attacks sent by player/team
+    setAttacks(prev => {
+      const next = { ...prev };
+      let changed = false;
+      Object.keys(next).forEach(tidStr => {
+        const tid = Number(tidStr);
+        const attack = next[tid];
+        if (attack && attack.duration > 0) {
+          const attacker = activePlayers.find(p => p.id === attack.attackerId);
+          const isFromSameSide = mode === 'TEAM' && player.team > 0
+            ? attacker?.team === player.team
+            : attack.attackerId === id;
+          
+          if (isFromSameSide) {
+            next[tid] = { duration: 0, attackerId: -1 };
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [activePlayers, mode]);
 
   const handleApplyItem = useCallback((playerId: number, type: ItemType) => {
     if (type === 'TIME_PLUS') {
@@ -1064,7 +1102,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
             : p.id !== attackerId;
             
           if (isOpponent) {
-            next[p.id] = 10;
+            next[p.id] = { duration: 10, attackerId };
           }
         });
         return next;
@@ -1077,10 +1115,10 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
         
       if (opponents.length > 0) {
         const randomOpp = opponents[Math.floor(Math.random() * opponents.length)];
-        setAttacks(prev => ({ ...prev, [randomOpp.id]: 10 }));
+        setAttacks(prev => ({ ...prev, [randomOpp.id]: { duration: 10, attackerId } }));
       }
     } else {
-      setAttacks(prev => ({ ...prev, [targetId]: 10 }));
+      setAttacks(prev => ({ ...prev, [targetId]: { duration: 10, attackerId } }));
     }
   }, [activePlayers, mode]);
 
@@ -1160,7 +1198,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
               onAttack={handleAttack}
               borderColor={mode === 'TEAM' ? TEAM_COLORS[player.team] : 'border-gray-700'}
               isPaused={isPaused}
-              isAttacked={(attacks[player.id] || 0) > 0 && !(activeBuffs[player.id] || []).some(it => it.type === 'SHIELD')}
+              isAttacked={(attacks[player.id]?.duration || 0) > 0 && !(activeBuffs[player.id] || []).some(it => it.type === 'SHIELD')}
             />
           </div>
         ))}
