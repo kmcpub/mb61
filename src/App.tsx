@@ -280,34 +280,24 @@ type PlayerBoardProps = {
   score: number;
   allScores: number[];
   options: GameOptions;
+  activeItems: ActiveItem[];
   onCorrect: (id: number, multiplier: number) => void;
   onWrong: (id: number) => void;
-  onTimeBoost: () => void;
+  onApplyItem: (type: ItemType) => void;
   onAttack: (attackerId: number, targetId: number | 'others', type: 'HIDE') => void;
   borderColor: string;
   isPaused?: boolean;
   isAttacked?: boolean;
 };
 
-const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, onWrong, onTimeBoost, onAttack, borderColor, isPaused, isAttacked }: PlayerBoardProps) => {
+const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems, onCorrect, onWrong, onApplyItem, onAttack, borderColor, isPaused, isAttacked }: PlayerBoardProps) => {
   const [problem, setProblem] = useState<Problem>(generateProblem(options.difficulty, options.digitRange));
   const [input, setInput] = useState<InputState>({ whole: '', num: '', den: '' });
   const [activeField, setActiveField] = useState<ActiveField>('whole');
   const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [floats, setFloats] = useState<{id: number, key: number, emoji: string | React.ReactNode}[]>([]);
   const [combo, setCombo] = useState(0);
-  const [activeItems, setActiveItems] = useState<ActiveItem[]>([]);
   const [itemEffect, setItemEffect] = useState<{ type: ItemType, id: number } | null>(null);
-
-  // Item timer loop
-  useEffect(() => {
-    if (isPaused) return;
-    const timer = setInterval(() => {
-      const now = Date.now();
-      setActiveItems(prev => prev.filter(item => item.endTime > now));
-    }, 500);
-    return () => clearInterval(timer);
-  }, [isPaused]);
 
   const currentRank = score > 0 ? 1 + allScores.filter(s => s > score).length : null;
   const medal = currentRank === 1 ? '🥇' : currentRank === 2 ? '🥈' : currentRank === 3 ? '🥉' : null;
@@ -382,21 +372,14 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, o
       setItemEffect({ type: randomType, id: Date.now() });
       setTimeout(() => setItemEffect(null), 2000);
 
-      const info = ITEM_INFO[randomType];
-      if (randomType === 'TIME_PLUS') {
-        onTimeBoost();
-      } else if (randomType === 'HIDE_RANDOM') {
+      if (randomType === 'HIDE_RANDOM') {
         onAttack(id, -1, 'HIDE');
       } else if (randomType === 'HIDE_OTHERS') {
         onAttack(id, 'others', 'HIDE');
       } else if (randomType === 'HIDE_SELF') {
         onAttack(id, id, 'HIDE');
-      } else if (info.duration) {
-        setActiveItems(prev => {
-          // Remove existing item of same type if any
-          const filtered = prev.filter(it => it.type !== randomType);
-          return [...filtered, { type: randomType, endTime: Date.now() + info.duration! * 1000 }];
-        });
+      } else {
+        onApplyItem(randomType);
       }
     }
     setTimeout(() => {
@@ -405,7 +388,7 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, o
       setActiveField('whole');
       setStatus('idle');
     }, 600);
-  }, [id, config.emoji, score, allScores, options, onCorrect]);
+  }, [id, config.emoji, score, allScores, options, activeItems, onCorrect, onAttack, onApplyItem]);
 
   const handleWrong = useCallback(() => {
     setStatus('wrong');
@@ -923,7 +906,8 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
 const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }: { activePlayers: ActivePlayer[]; duration: number; options: GameOptions; mode: GameMode; onEnd: (scores: Record<number, number>) => void, isPaused?: boolean }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
   const [scores, setScores] = useState<Record<number, number>>({});
-  const [attacks, setAttacks] = useState<Record<number, number>>({}); // id -> endTime
+  const [attacks, setAttacks] = useState<Record<number, number>>({}); // id -> seconds left
+  const [activeBuffs, setActiveBuffs] = useState<Record<number, ActiveItem[]>>({});
 
   useEffect(() => {
     if (isPaused) return;
@@ -944,6 +928,29 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     return () => clearInterval(timer);
   }, [isPaused]);
 
+  // Buff timer loop
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setActiveBuffs(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach(id => {
+          const nid = Number(id);
+          const current = next[nid] || [];
+          const filtered = current.filter(item => item.endTime > now);
+          if (filtered.length !== current.length) {
+            next[nid] = filtered;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 500);
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
   const sortedPlayers = useMemo(() => {
     if (mode === 'TEAM') {
       return [...activePlayers].sort((a, b) => a.team - b.team);
@@ -953,10 +960,13 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
 
   useEffect(() => {
     const initialScores: Record<number, number> = {};
+    const initialBuffs: Record<number, ActiveItem[]> = {};
     activePlayers.forEach(p => {
       initialScores[p.id] = 0;
+      initialBuffs[p.id] = [];
     });
     setScores(initialScores);
+    setActiveBuffs(initialBuffs);
   }, [activePlayers]);
 
   const teamScores = useMemo(() => {
@@ -1013,16 +1023,47 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     setScores(prev => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) - 1) }));
   }, []);
 
-  const handleTimeBoost = useCallback(() => {
-    setTimeLeft(prev => prev + 10);
-  }, []);
+  const handleApplyItem = useCallback((playerId: number, type: ItemType) => {
+    if (type === 'TIME_PLUS') {
+      setTimeLeft(prev => prev + 10);
+      return;
+    }
+
+    const info = ITEM_INFO[type];
+    if (!info.duration) return;
+
+    const attacker = activePlayers.find(p => p.id === playerId);
+    if (!attacker) return;
+
+    const endTime = Date.now() + info.duration * 1000;
+    const targets = mode === 'TEAM' && attacker.team > 0 
+      ? activePlayers.filter(p => p.team === attacker.team).map(p => p.id)
+      : [playerId];
+
+    setActiveBuffs(prev => {
+      const next = { ...prev };
+      targets.forEach(tid => {
+        const current = next[tid] || [];
+        const filtered = current.filter(it => it.type !== type);
+        next[tid] = [...filtered, { type, endTime }];
+      });
+      return next;
+    });
+  }, [activePlayers, mode]);
 
   const handleAttack = useCallback((attackerId: number, targetId: number | 'others', type: 'HIDE') => {
+    const attacker = activePlayers.find(p => p.id === attackerId);
+    if (!attacker) return;
+
     if (targetId === 'others') {
       setAttacks(prev => {
         const next = { ...prev };
         activePlayers.forEach(p => {
-          if (p.id !== attackerId) {
+          const isOpponent = mode === 'TEAM' && attacker.team > 0 
+            ? p.team !== attacker.team 
+            : p.id !== attackerId;
+            
+          if (isOpponent) {
             next[p.id] = 10;
           }
         });
@@ -1030,7 +1071,10 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
       });
     } else if (targetId === -1) {
       // Random opponent
-      const opponents = activePlayers.filter(p => p.id !== attackerId);
+      const opponents = mode === 'TEAM' && attacker.team > 0
+        ? activePlayers.filter(p => p.team !== attacker.team)
+        : activePlayers.filter(p => p.id !== attackerId);
+        
       if (opponents.length > 0) {
         const randomOpp = opponents[Math.floor(Math.random() * opponents.length)];
         setAttacks(prev => ({ ...prev, [randomOpp.id]: 10 }));
@@ -1038,7 +1082,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     } else {
       setAttacks(prev => ({ ...prev, [targetId]: 10 }));
     }
-  }, [activePlayers]);
+  }, [activePlayers, mode]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -1109,13 +1153,14 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
               score={scores[player.id] || 0}
               allScores={Object.values(scores)}
               options={options}
+              activeItems={activeBuffs[player.id] || []}
               onCorrect={handleCorrect}
               onWrong={handleWrong}
-              onTimeBoost={handleTimeBoost}
+              onApplyItem={(type) => handleApplyItem(player.id, type)}
               onAttack={handleAttack}
               borderColor={mode === 'TEAM' ? TEAM_COLORS[player.team] : 'border-gray-700'}
               isPaused={isPaused}
-              isAttacked={attacks[player.id] > 0}
+              isAttacked={(attacks[player.id] || 0) > 0 && !(activeBuffs[player.id] || []).some(it => it.type === 'SHIELD')}
             />
           </div>
         ))}
