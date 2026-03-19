@@ -100,6 +100,15 @@ const playSound = (type: 'click' | 'correct' | 'wrong' | 'tick' | 'tada' | 'coun
     osc.frequency.exponentialRampToValueAtTime(150, now + 0.06);
     gain.gain.setValueAtTime(0.18, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+  } else if (type === 'item' as any) {
+    // Item acquisition: Sparkling magic sound
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(2640, now + 0.3);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
   }
   
   osc.start(now);
@@ -133,6 +142,24 @@ type GameOptions = {
   requireMixed: boolean;
   difficulty: Difficulty;
   digitRange: [number, number];
+  isItemMode: boolean;
+};
+
+type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD';
+
+const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, duration?: number }> = {
+  TIME_PLUS: { name: '+10초', emoji: '🎁', color: 'text-green-400' },
+  DOUBLE_SCORE: { name: '점수 2배', emoji: '⚡', color: 'text-yellow-400', duration: 20 },
+  FEVER_TIME: { name: '점수 3배', emoji: '🔥', color: 'text-orange-500', duration: 10 },
+  HIDE_RANDOM: { name: '랜덤 가리기', emoji: '🌫️', color: 'text-gray-400', duration: 10 },
+  HIDE_OTHERS: { name: '나 빼고 가리기', emoji: '🌫️🌫️', color: 'text-gray-300', duration: 10 },
+  HIDE_SELF: { name: '나 가리기', emoji: '💀', color: 'text-red-500', duration: 10 },
+  SHIELD: { name: '방어막', emoji: '🛡️', color: 'text-blue-400', duration: 10 },
+};
+
+type ActiveItem = {
+  type: ItemType;
+  endTime: number;
 };
 
 type GameMode = 'INDIVIDUAL' | 'TEAM';
@@ -253,19 +280,34 @@ type PlayerBoardProps = {
   score: number;
   allScores: number[];
   options: GameOptions;
-  onCorrect: (id: number) => void;
+  onCorrect: (id: number, multiplier: number) => void;
   onWrong: (id: number) => void;
+  onTimeBoost: () => void;
+  onAttack: (attackerId: number, targetId: number | 'others', type: 'HIDE') => void;
   borderColor: string;
   isPaused?: boolean;
+  isAttacked?: boolean;
 };
 
-const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, onWrong, borderColor, isPaused }: PlayerBoardProps) => {
+const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, onWrong, onTimeBoost, onAttack, borderColor, isPaused, isAttacked }: PlayerBoardProps) => {
   const [problem, setProblem] = useState<Problem>(generateProblem(options.difficulty, options.digitRange));
   const [input, setInput] = useState<InputState>({ whole: '', num: '', den: '' });
   const [activeField, setActiveField] = useState<ActiveField>('whole');
   const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [floats, setFloats] = useState<{id: number, key: number, emoji: string | React.ReactNode}[]>([]);
   const [combo, setCombo] = useState(0);
+  const [activeItems, setActiveItems] = useState<ActiveItem[]>([]);
+  const [itemEffect, setItemEffect] = useState<{ type: ItemType, id: number } | null>(null);
+
+  // Item timer loop
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setActiveItems(prev => prev.filter(item => item.endTime > now));
+    }, 500);
+    return () => clearInterval(timer);
+  }, [isPaused]);
 
   const currentRank = score > 0 ? 1 + allScores.filter(s => s > score).length : null;
   const medal = currentRank === 1 ? '🥇' : currentRank === 2 ? '🥈' : currentRank === 3 ? '🥉' : null;
@@ -326,7 +368,37 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, o
       return newCombo;
     });
 
-    onCorrect(id);
+    const scoreMultiplier = activeItems.some(it => it.type === 'FEVER_TIME') ? 3 : 
+                           activeItems.some(it => it.type === 'DOUBLE_SCORE') ? 2 : 1;
+
+    onCorrect(id, scoreMultiplier);
+
+    // Item Generation
+    if (options.isItemMode && Math.random() < 0.5) {
+      playSound('item' as any);
+      const itemTypes: ItemType[] = ['TIME_PLUS', 'DOUBLE_SCORE', 'FEVER_TIME', 'HIDE_RANDOM', 'HIDE_OTHERS', 'HIDE_SELF', 'SHIELD'];
+      const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+      
+      setItemEffect({ type: randomType, id: Date.now() });
+      setTimeout(() => setItemEffect(null), 2000);
+
+      const info = ITEM_INFO[randomType];
+      if (randomType === 'TIME_PLUS') {
+        onTimeBoost();
+      } else if (randomType === 'HIDE_RANDOM') {
+        onAttack(id, -1, 'HIDE');
+      } else if (randomType === 'HIDE_OTHERS') {
+        onAttack(id, 'others', 'HIDE');
+      } else if (randomType === 'HIDE_SELF') {
+        onAttack(id, id, 'HIDE');
+      } else if (info.duration) {
+        setActiveItems(prev => {
+          // Remove existing item of same type if any
+          const filtered = prev.filter(it => it.type !== randomType);
+          return [...filtered, { type: randomType, endTime: Date.now() + info.duration! * 1000 }];
+        });
+      }
+    }
     setTimeout(() => {
       setProblem(generateProblem(options.difficulty, options.digitRange));
       setInput({ whole: '', num: '', den: '' });
@@ -457,14 +529,40 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, o
         </div>
       ))}
       
-      <div className="flex flex-col items-center mb-2 px-1">
+      <div className="flex flex-col items-center mb-2 px-1 relative">
+        {/* Active Items Display */}
+        <div className="absolute -top-1 right-0 flex flex-col gap-1 items-end">
+          {activeItems.map((item, idx) => {
+            const info = ITEM_INFO[item.type];
+            const timeLeft = Math.max(0, Math.ceil((item.endTime - Date.now()) / 1000));
+            return (
+              <div key={idx} className={`flex items-center gap-1 bg-black/60 px-2 py-0.5 rounded-full border border-white/20 text-[10px] sm:text-xs font-bold ${info.color}`}>
+                <span>{info.emoji}</span>
+                <span>{timeLeft}s</span>
+              </div>
+            );
+          })}
+        </div>
+
         <span className={`font-black text-2xl sm:text-3xl lg:text-4xl whitespace-nowrap ${textColor}`}>
           {config.emoji} {config.name}
         </span>
-        <span className={`font-black text-3xl sm:text-4xl lg:text-5xl ${textColor}`}>
-          {medal && <span className="mr-2">{medal}</span>}
-          {score}
-        </span>
+        <div className="relative flex flex-col items-center">
+          <span className={`font-black text-3xl sm:text-4xl lg:text-5xl ${textColor}`}>
+            {medal && <span className="mr-2">{medal}</span>}
+            {score}
+          </span>
+          
+          {/* Item Acquisition Animation - Now under score */}
+          {itemEffect && (
+            <div className="absolute top-full mt-1 z-50 pointer-events-none whitespace-nowrap">
+              <div className="bg-yellow-500/90 text-black px-3 py-1 rounded-full font-black text-sm sm:text-base animate-bounce shadow-[0_0_15px_rgba(255,255,0,0.6)] border border-white flex items-center gap-1">
+                <span>{ITEM_INFO[itemEffect.type].emoji}</span>
+                <span>{ITEM_INFO[itemEffect.type].name}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       
       <div className={`flex-1 flex flex-col items-center justify-center rounded-lg shadow-inner mb-2 p-1 transition-colors duration-300 ${
@@ -474,11 +572,19 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, onCorrect, o
       }`}>
         {!isPaused && (
           <>
-            <div className="text-[clamp(1rem,2vw,2rem)] sm:text-2xl md:text-3xl mb-2 flex items-center justify-center whitespace-nowrap text-gray-100">
-              <Fraction whole={problem.A} num={problem.B} den={problem.C} />
-              <span className="mx-1">÷</span>
-              <span>{problem.D}</span>
-              <span className="mx-1">=</span>
+            <div className="relative w-full flex items-center justify-center py-4 mb-2">
+              {/* Fog Overlay for Attacks - Now restricted to problem area */}
+              {isAttacked && !activeItems.some(it => it.type === 'SHIELD') && (
+                <div className="absolute inset-0 z-40 bg-gray-900/95 backdrop-blur-xl flex items-center justify-center animate-pulse rounded-lg">
+                  <div className="text-4xl sm:text-5xl">🌫️</div>
+                </div>
+              )}
+              <div className="text-[clamp(1rem,2vw,2rem)] sm:text-2xl md:text-3xl flex items-center justify-center whitespace-nowrap text-gray-100">
+                <Fraction whole={problem.A} num={problem.B} den={problem.C} />
+                <span className="mx-1">÷</span>
+                <span>{problem.D}</span>
+                <span className="mx-1">=</span>
+              </div>
             </div>
             
             {/* Input Area */}
@@ -572,6 +678,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
   });
   const [requireIrreducible, setRequireIrreducible] = useState(() => localStorage.getItem('requireIrreducible') === 'true');
   const [requireMixed, setRequireMixed] = useState(() => localStorage.getItem('requireMixed') === 'true');
+  const [isItemMode, setIsItemMode] = useState(() => localStorage.getItem('isItemMode') === 'true');
   const [difficulty, setDifficulty] = useState<Difficulty>(() => (localStorage.getItem('difficulty') as Difficulty) || 'BRONZE');
   const [digitRange, setDigitRange] = useState<[number, number]>(() => {
     const s = localStorage.getItem('digitRange');
@@ -585,6 +692,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
     localStorage.setItem('teamAssignments', JSON.stringify(teamAssignments));
     localStorage.setItem('requireIrreducible', requireIrreducible.toString());
     localStorage.setItem('requireMixed', requireMixed.toString());
+    localStorage.setItem('isItemMode', isItemMode.toString());
     localStorage.setItem('difficulty', difficulty);
     localStorage.setItem('digitRange', JSON.stringify(digitRange));
   }, [time, mode, individualCount, teamAssignments, requireIrreducible, requireMixed, difficulty, digitRange]);
@@ -608,7 +716,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
       }
     }
 
-    onStart(players, finalTime, { requireIrreducible, requireMixed, difficulty, digitRange }, mode);
+    onStart(players, finalTime, { requireIrreducible, requireMixed, difficulty, digitRange, isItemMode }, mode);
   };
 
   const TEAM_COLORS = [
@@ -639,11 +747,11 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
         className="text-xl sm:text-2xl text-gray-400 bg-transparent text-center focus:outline-none focus:border-b border-gray-500 mb-2"
         placeholder="부제목 입력"
       />
-      <h1 className="text-4xl sm:text-6xl font-black text-blue-400 mb-8 drop-shadow-md text-center leading-tight">
+      <h1 className="text-4xl sm:text-7xl font-black text-blue-400 mb-8 drop-shadow-md text-center leading-tight w-full max-w-7xl">
         👑 대분수 ÷ 자연수 배틀 ⚔️
       </h1>
       
-      <div className="flex flex-col lg:flex-row gap-4 w-full max-w-6xl mb-8">
+      <div className="flex flex-col lg:flex-row gap-4 w-full max-w-7xl mb-8">
         
         {/* Participants / Teams Panel */}
         <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl flex-[2] border border-gray-700 flex flex-col items-center">
@@ -733,24 +841,35 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
         <div className="bg-gray-800 p-4 rounded-2xl shadow-2xl flex-1 border border-gray-700 flex flex-col items-center">
           <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">정답 조건</h2>
           <div className="flex flex-col gap-3 w-full">
-            <div className="flex gap-2 w-full">
-              <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex gap-2 w-full">
+                <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={requireIrreducible}
+                    onChange={(e) => { playSound('click'); setRequireIrreducible(e.target.checked); }}
+                    className="w-5 h-5 accent-blue-500"
+                  />
+                  <span className="text-base text-gray-300">기약분수</span>
+                </label>
+                <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={requireMixed}
+                    onChange={(e) => { playSound('click'); setRequireMixed(e.target.checked); }}
+                    className="w-5 h-5 accent-blue-500"
+                  />
+                  <span className="text-base text-gray-300">대분수</span>
+                </label>
+              </div>
+              <label className="w-full flex items-center justify-center space-x-2 cursor-pointer bg-yellow-900/30 p-3 rounded-xl border border-yellow-700/50 hover:border-yellow-500 transition-colors">
                 <input 
                   type="checkbox" 
-                  checked={requireIrreducible}
-                  onChange={(e) => { playSound('click'); setRequireIrreducible(e.target.checked); }}
-                  className="w-5 h-5 accent-blue-500"
+                  checked={isItemMode}
+                  onChange={(e) => { playSound('click'); setIsItemMode(e.target.checked); }}
+                  className="w-6 h-6 accent-yellow-500"
                 />
-                <span className="text-base text-gray-300">기약분수</span>
-              </label>
-              <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={requireMixed}
-                  onChange={(e) => { playSound('click'); setRequireMixed(e.target.checked); }}
-                  className="w-5 h-5 accent-blue-500"
-                />
-                <span className="text-base text-gray-300">대분수</span>
+                <span className="text-lg font-bold text-yellow-400">✨ 아이템전 모드 ✨</span>
               </label>
             </div>
             <div className="bg-gray-900 p-3 rounded-xl border border-gray-700">
@@ -765,7 +884,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
 
       </div>
       
-      <div className="bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-6xl mb-8 border border-gray-700 flex flex-col items-center">
+      <div className="bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-7xl mb-8 border border-gray-700 flex flex-col items-center">
         <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">난이도</h2>
         <div className="flex flex-row w-full gap-1 sm:gap-2 justify-between">
           {DIFFICULTIES.map(d => {
@@ -804,6 +923,26 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
 const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }: { activePlayers: ActivePlayer[]; duration: number; options: GameOptions; mode: GameMode; onEnd: (scores: Record<number, number>) => void, isPaused?: boolean }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
   const [scores, setScores] = useState<Record<number, number>>({});
+  const [attacks, setAttacks] = useState<Record<number, number>>({}); // id -> endTime
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      setAttacks(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach(id => {
+          const nid = parseInt(id);
+          if (next[nid] > 0) {
+            next[nid] = next[nid] - 1;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isPaused]);
 
   const sortedPlayers = useMemo(() => {
     if (mode === 'TEAM') {
@@ -862,20 +1001,44 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
 
   useEffect(() => {
     if (timeLeft <= 10 && timeLeft > 0) {
-      // Urgent countdown sound is now handled by a separate logic or 
-      // is less likely to be interrupted by other sounds.
-      // We will ensure it plays independently.
       playSound('countdown', false, true);
     }
   }, [timeLeft]);
 
-  const handleCorrect = useCallback((id: number) => {
-    setScores(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  const handleCorrect = useCallback((id: number, multiplier: number = 1) => {
+    setScores(prev => ({ ...prev, [id]: (prev[id] || 0) + multiplier }));
   }, []);
 
   const handleWrong = useCallback((id: number) => {
     setScores(prev => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) - 1) }));
   }, []);
+
+  const handleTimeBoost = useCallback(() => {
+    setTimeLeft(prev => prev + 10);
+  }, []);
+
+  const handleAttack = useCallback((attackerId: number, targetId: number | 'others', type: 'HIDE') => {
+    if (targetId === 'others') {
+      setAttacks(prev => {
+        const next = { ...prev };
+        activePlayers.forEach(p => {
+          if (p.id !== attackerId) {
+            next[p.id] = 10;
+          }
+        });
+        return next;
+      });
+    } else if (targetId === -1) {
+      // Random opponent
+      const opponents = activePlayers.filter(p => p.id !== attackerId);
+      if (opponents.length > 0) {
+        const randomOpp = opponents[Math.floor(Math.random() * opponents.length)];
+        setAttacks(prev => ({ ...prev, [randomOpp.id]: 10 }));
+      }
+    } else {
+      setAttacks(prev => ({ ...prev, [targetId]: 10 }));
+    }
+  }, [activePlayers]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -905,7 +1068,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
       {/* Top Bar */}
       <div className={`flex justify-between items-center px-4 py-2 shadow-md z-10 border-b border-gray-800 transition-colors duration-300 ${timeLeft <= 10 ? 'animate-blink-red' : 'bg-gray-900'}`}>
         <div className="flex items-center gap-4 hidden sm:flex">
-          <h1 className="text-lg sm:text-xl font-bold text-gray-300">대분수 ÷ 자연수</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-300">대분수 ÷ 자연수 {options.isItemMode && <span className="text-yellow-400 ml-2">✨ 아이템전 ✨</span>}</h1>
           <button onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors touch-none select-none" title="전체 화면">
             <Maximize size={20} />
           </button>
@@ -948,8 +1111,11 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
               options={options}
               onCorrect={handleCorrect}
               onWrong={handleWrong}
+              onTimeBoost={handleTimeBoost}
+              onAttack={handleAttack}
               borderColor={mode === 'TEAM' ? TEAM_COLORS[player.team] : 'border-gray-700'}
               isPaused={isPaused}
+              isAttacked={attacks[player.id] > 0}
             />
           </div>
         ))}
@@ -1090,7 +1256,7 @@ export default function App() {
   const [duration, setDuration] = useState(60);
   const [activePlayers, setActivePlayers] = useState<ActivePlayer[]>([]);
   const [mode, setMode] = useState<GameMode>('INDIVIDUAL');
-  const [options, setOptions] = useState<GameOptions>({ requireIrreducible: false, requireMixed: false, difficulty: 'BRONZE' });
+  const [options, setOptions] = useState<GameOptions>({ requireIrreducible: false, requireMixed: false, difficulty: 'BRONZE', digitRange: [10, 20], isItemMode: false });
   const [finalScores, setFinalScores] = useState<Record<number, number>>({});
 
   useEffect(() => {
