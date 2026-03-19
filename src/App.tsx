@@ -149,7 +149,7 @@ type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'H
 
 const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, duration?: number }> = {
   TIME_PLUS: { name: '+10초', emoji: '🎁', color: 'text-green-400' },
-  DOUBLE_SCORE: { name: '점수 2배', emoji: '⚡', color: 'text-yellow-400', duration: 20 },
+  DOUBLE_SCORE: { name: '점수 2배', emoji: '⚡', color: 'text-yellow-400', duration: 10 },
   FEVER_TIME: { name: '점수 3배', emoji: '🔥', color: 'text-orange-500', duration: 10 },
   HIDE_RANDOM: { name: '랜덤 가리기', emoji: '🌫️', color: 'text-gray-400', duration: 10 },
   HIDE_OTHERS: { name: '나 빼고 가리기', emoji: '🌫️🌫️', color: 'text-gray-300', duration: 10 },
