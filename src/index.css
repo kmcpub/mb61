@@ -14,6 +14,30 @@
     50% { transform: scale(1.2); opacity: 1; filter: blur(0px); }
     100% { transform: scale(2); opacity: 0; filter: blur(10px); }
   }
+  @keyframes neon-glow {
+    0%, 100% { box-shadow: 0 0 20px #facc15, 0 0 40px #facc15, 0 0 60px #eab308; border-color: #fef08a; }
+    50% { box-shadow: 0 0 40px #facc15, 0 0 80px #facc15, 0 0 120px #eab308; border-color: #ffffff; }
+  }
+  @keyframes sparkle {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+  @keyframes blink-red {
+    0%, 100% { background-color: #111827; } /* gray-900 */
+    50% { background-color: #991b1b; } /* red-800 */
+  }
+}
+
+.animate-neon-glow {
+  animation: neon-glow 2s infinite alternate;
+}
+
+.animate-sparkle {
+  animation: sparkle 1.5s infinite;
+}
+
+.animate-blink-red {
+  animation: blink-red 0.5s infinite;
 }
 
 body {

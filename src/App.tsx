@@ -903,7 +903,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
   return (
     <div className="flex flex-col h-full bg-black">
       {/* Top Bar */}
-      <div className="flex justify-between items-center bg-gray-900 px-4 py-2 shadow-md z-10 border-b border-gray-800">
+      <div className={`flex justify-between items-center px-4 py-2 shadow-md z-10 border-b border-gray-800 transition-colors duration-300 ${timeLeft <= 10 ? 'animate-blink-red' : 'bg-gray-900'}`}>
         <div className="flex items-center gap-4 hidden sm:flex">
           <h1 className="text-lg sm:text-xl font-bold text-gray-300">대분수 ÷ 자연수</h1>
           <button onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors touch-none select-none" title="전체 화면">
@@ -997,73 +997,90 @@ const ResultScreen = ({ scores, activePlayers, mode, onRestart }: { scores: Reco
   const firstPlaceGroup = rankedWithRanks.filter(r => r.rank === 1);
   const others = rankedWithRanks.filter(r => r.rank > 1);
 
-  return (
-    <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4 overflow-y-auto text-white">
-      <h1 className="text-4xl sm:text-6xl font-black text-yellow-400 mb-8 drop-shadow-md mt-8 sm:mt-0">
-        🎉 게임 결과 🎉
-      </h1>
-      
-      <div className="w-full max-w-4xl mb-8 flex flex-col items-center gap-4">
-        <div className={`w-full grid gap-4 ${firstPlaceGroup.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {firstPlaceGroup.map((firstPlace, idx) => (
-            <div key={idx} className={`w-full bg-yellow-900/60 border-4 border-yellow-400 rounded-2xl shadow-2xl flex items-center justify-between p-4 flex-col justify-center gap-2 transform scale-105 z-10`}>
-              <div className="flex items-center space-x-2">
-                <span className="text-3xl sm:text-4xl animate-bounce">🥇</span>
-                <span className={`text-2xl sm:text-3xl font-black ${mode === 'INDIVIDUAL' ? PLAYERS[firstPlace.id].textClass : TEAM_COLORS[firstPlace.team].split(' ')[2]}`}>
-                  {mode === 'INDIVIDUAL' ? `${PLAYERS[firstPlace.id].emoji} ${PLAYERS[firstPlace.id].name}` : TEAM_NAMES[firstPlace.team]}
-                </span>
-              </div>
-              <span className="text-3xl sm:text-4xl font-black text-white">{firstPlace.score}점</span>
-            </div>
-          ))}
-        </div>
+  // Dynamic sizing based on number of 1st place winners
+  const isManyWinners = firstPlaceGroup.length > 2;
+  const firstPlaceCols = firstPlaceGroup.length === 1 ? 'grid-cols-1' : 
+                         firstPlaceGroup.length <= 4 ? 'grid-cols-2' : 
+                         'grid-cols-4';
+  
+  const cardPadding = isManyWinners ? 'p-2 sm:p-3' : 'p-4';
+  const emojiSize = isManyWinners ? 'text-2xl sm:text-4xl' : 'text-4xl sm:text-6xl';
+  const nameSize = isManyWinners ? 'text-xl sm:text-3xl' : 'text-3xl sm:text-5xl';
+  const scoreSize = isManyWinners ? 'text-2xl sm:text-4xl' : 'text-4xl sm:text-6xl';
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-4">
-          {others.map((r, idx) => {
-            return (
-              <div key={idx} className={`flex items-center justify-between p-4 rounded-xl shadow-lg ${
-                r.rank === 2 ? 'bg-gray-800 border-2 border-gray-300' :
-                r.rank === 3 ? 'bg-orange-900/40 border-2 border-orange-500/50' :
-                'bg-gray-800 border border-gray-700'
-              }`}>
-                <div className="flex items-center space-x-4">
-                  <span className="text-2xl sm:text-3xl font-black w-12 text-center">
-                    {r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `${r.rank}위`}
-                  </span>
-                  <span className={`text-xl sm:text-2xl font-bold ${mode === 'INDIVIDUAL' ? PLAYERS[r.id].textClass : TEAM_COLORS[r.team].split(' ')[2]}`}>
-                    {mode === 'INDIVIDUAL' ? `${PLAYERS[r.id].emoji} ${PLAYERS[r.id].name}` : TEAM_NAMES[r.team]}
+  return (
+    <div className="flex flex-col items-center justify-between h-screen bg-gray-900 p-2 sm:p-4 overflow-hidden text-white">
+      <div className="flex flex-col items-center w-full max-w-6xl flex-1 justify-center gap-2 sm:gap-4">
+        <h1 className="text-3xl sm:text-5xl font-black text-yellow-400 drop-shadow-md">
+          🎉 게임 결과 🎉
+        </h1>
+        
+        <div className="w-full max-w-5xl flex flex-col items-center gap-2 sm:gap-4">
+          <div className={`w-full grid gap-2 sm:gap-4 ${firstPlaceCols}`}>
+            {firstPlaceGroup.map((firstPlace, idx) => (
+              <div key={idx} className={`w-full bg-yellow-900/60 border-2 sm:border-4 border-yellow-400 rounded-xl sm:rounded-2xl shadow-2xl flex items-center justify-between ${cardPadding} flex-col justify-center gap-1 sm:gap-2 transform ${isManyWinners ? 'scale-100' : 'scale-105'} z-10 animate-neon-glow relative overflow-hidden`}>
+                <div className="flex items-center space-x-2">
+                  <span className={`${emojiSize} animate-bounce drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]`}>🥇</span>
+                  <span className={`${nameSize} font-black drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] ${mode === 'INDIVIDUAL' ? PLAYERS[firstPlace.id].textClass : TEAM_COLORS[firstPlace.team].split(' ')[2]}`}>
+                    {mode === 'INDIVIDUAL' ? `${PLAYERS[firstPlace.id].emoji} ${PLAYERS[firstPlace.id].name}` : TEAM_NAMES[firstPlace.team]}
                   </span>
                 </div>
-                <span className="text-2xl sm:text-3xl font-black text-white">{r.score}점</span>
+                <span className={`${scoreSize} font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)]`}>{firstPlace.score}점</span>
+              </div>
+            ))}
+          </div>
+
+          <div className={`grid gap-2 w-full mt-1 ${others.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'}`}>
+            {others.slice(0, 8).map((r, idx) => {
+              return (
+                <div key={idx} className={`flex items-center justify-between p-1.5 px-3 rounded-lg shadow-lg ${
+                  r.rank === 2 ? 'bg-gray-800 border-2 border-gray-300' :
+                  r.rank === 3 ? 'bg-orange-900/40 border-2 border-orange-500/50' :
+                  'bg-gray-800 border border-gray-700'
+                }`}>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg sm:text-xl font-black w-8 text-center">
+                      {r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : `${r.rank}위`}
+                    </span>
+                    <span className={`text-base sm:text-lg font-bold truncate max-w-[80px] ${mode === 'INDIVIDUAL' ? PLAYERS[r.id].textClass : TEAM_COLORS[r.team].split(' ')[2]}`}>
+                      {mode === 'INDIVIDUAL' ? `${PLAYERS[r.id].emoji} ${PLAYERS[r.id].name}` : TEAM_NAMES[r.team]}
+                    </span>
+                  </div>
+                  <span className="text-lg sm:text-xl font-black text-white">{r.score}점</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          onPointerDown={(e) => { e.preventDefault(); playSound('click'); onRestart(); }}
+          className="px-6 py-2 sm:px-8 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black text-lg sm:text-2xl shadow-blue-600/50 shadow-lg transform transition hover:scale-105 touch-none select-none mt-1"
+        >
+          메인 메뉴로
+        </button>
+      </div>
+
+      {/* Bottom Horizontal Rankings (Position-based) - Full Width, Large */}
+      <div className="w-full bg-gray-800/80 border-t-2 border-gray-700 p-2 sm:p-4">
+        <div className="flex w-full gap-1 sm:gap-3">
+          {(mode === 'TEAM' ? [...activePlayers].sort((a, b) => a.team - b.team) : activePlayers).map((p) => {
+            const score = scores[p.id] || 0;
+            const rank = 1 + Object.values(scores).filter(s => s > score).length;
+            const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+            const teamColor = p.team > 0 ? TEAM_COLORS[p.team].split(' ')[2] : PLAYERS[p.id].textClass;
+            
+            return (
+              <div key={p.id} className="flex-1 flex flex-col items-center justify-center bg-gray-900/60 p-2 sm:p-4 rounded-xl border-2 border-gray-700 shadow-inner">
+                <div className="text-4xl sm:text-6xl mb-2">{PLAYERS[p.id].emoji}</div>
+                <div className={`text-sm sm:text-xl font-black mb-1 sm:mb-2 truncate w-full text-center ${teamColor}`}>{PLAYERS[p.id].name}</div>
+                <div className="text-2xl sm:text-4xl font-black text-white">{score}점</div>
+                <div className="mt-2 text-3xl sm:text-5xl h-10 sm:h-14 flex items-center justify-center">{medal}</div>
               </div>
             );
           })}
         </div>
-        
-        {mode === 'TEAM' && (
-          <div className="w-full mt-8 bg-gray-800 p-6 rounded-2xl border border-gray-700">
-            <h2 className="text-2xl font-bold mb-4 text-center text-gray-300">개인별 점수</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {activePlayers.sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0)).map(p => {
-                const teamColor = p.team > 0 ? TEAM_COLORS[p.team].split(' ')[2] : PLAYERS[p.id].textClass;
-                return (
-                  <div key={p.id} className={`flex items-center justify-between p-3 rounded-lg border ${TEAM_COLORS[p.team].split(' ')[1]}`}>
-                    <span className={`font-bold ${teamColor}`}>{PLAYERS[p.id].emoji} {PLAYERS[p.id].name}</span>
-                    <span className="font-bold text-white">{scores[p.id] || 0}점</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
-      
-      <button
-        onPointerDown={(e) => { e.preventDefault(); playSound('click'); onRestart(); }}
-        className="px-10 sm:px-12 py-4 sm:py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black text-2xl sm:text-3xl shadow-blue-600/50 shadow-lg transform transition hover:scale-105 mb-8 sm:mb-0 touch-none select-none"
-      >
-        메인 메뉴로
-      </button>
     </div>
   );
 };
