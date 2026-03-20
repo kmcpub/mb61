@@ -145,7 +145,7 @@ type GameOptions = {
   isItemMode: boolean;
 };
 
-type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD' | 'SCORE_PLUS_1' | 'SCORE_MINUS_1' | 'SCORE_PLUS_3' | 'SCORE_MINUS_3' | 'SWAP_SCORE' | 'NOTHING' | 'RESET_SELF' | 'RESET_ALL';
+type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD' | 'SCORE_PLUS_1' | 'SCORE_MINUS_1' | 'SCORE_PLUS_3' | 'SCORE_MINUS_3' | 'SWAP_SCORE' | 'NOTHING' | 'RESET_SELF' | 'RESET_ALL' | 'RANDOM_OTHER_PLUS_1' | 'RANDOM_OTHER_PLUS_3' | 'ALL_PLUS_1' | 'ALL_PLUS_3' | 'RANDOM_OTHER_MINUS_1' | 'RANDOM_OTHER_MINUS_3' | 'ALL_MINUS_1' | 'ALL_MINUS_3';
 
 const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, duration?: number }> = {
   TIME_PLUS: { name: '+10초', emoji: '🎁', color: 'text-green-400' },
@@ -159,6 +159,14 @@ const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, 
   SCORE_MINUS_1: { name: '-1점', emoji: '💣', color: 'text-red-400' },
   SCORE_PLUS_3: { name: '+3점', emoji: '👑', color: 'text-yellow-300' },
   SCORE_MINUS_3: { name: '-3점', emoji: '💥', color: 'text-red-600' },
+  RANDOM_OTHER_PLUS_1: { name: '랜덤 1명 +1점', emoji: '🎁💎', color: 'text-blue-300' },
+  RANDOM_OTHER_PLUS_3: { name: '랜덤 1명 +3점', emoji: '🎁👑', color: 'text-yellow-300' },
+  ALL_PLUS_1: { name: '전체 +1점', emoji: '🌍💎', color: 'text-blue-400' },
+  ALL_PLUS_3: { name: '전체 +3점', emoji: '🌍👑', color: 'text-yellow-400' },
+  RANDOM_OTHER_MINUS_1: { name: '랜덤 1명 -1점', emoji: '🎁💣', color: 'text-red-300' },
+  RANDOM_OTHER_MINUS_3: { name: '랜덤 1명 -3점', emoji: '🎁💥', color: 'text-red-500' },
+  ALL_MINUS_1: { name: '전체 -1점', emoji: '🌍💣', color: 'text-red-400' },
+  ALL_MINUS_3: { name: '전체 -3점', emoji: '🌍💥', color: 'text-red-600' },
   SWAP_SCORE: { name: '점수 바꾸기', emoji: '🔄', color: 'text-purple-400' },
   NOTHING: { name: '아무 일도 없음', emoji: '🍃', color: 'text-gray-500' },
   RESET_SELF: { name: '자기 점수 초기화', emoji: '🧹', color: 'text-red-700' },
@@ -388,20 +396,28 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
       const roll = Math.random() * 100;
       let randomType: ItemType = 'NOTHING';
       
-      if (roll < 50) randomType = 'NOTHING';
-      else if (roll < 59) randomType = 'HIDE_RANDOM';
-      else if (roll < 66) randomType = 'HIDE_OTHERS';
-      else if (roll < 71) randomType = 'HIDE_SELF';
-      else if (roll < 76) randomType = 'SHIELD';
-      else if (roll < 82) randomType = 'DOUBLE_SCORE';
-      else if (roll < 85) randomType = 'FEVER_TIME';
-      else if (roll < 90) randomType = 'SCORE_PLUS_1';
-      else if (roll < 92) randomType = 'SCORE_MINUS_1';
-      else if (roll < 95) randomType = 'SCORE_PLUS_3';
-      else if (roll < 96) randomType = 'SCORE_MINUS_3';
-      else if (roll < 97) randomType = 'SWAP_SCORE';
-      else if (roll < 97.5) randomType = 'RESET_SELF';
-      else if (roll < 98) randomType = 'RESET_ALL';
+      if (roll < 52) randomType = 'NOTHING';
+      else if (roll < 61) randomType = 'HIDE_RANDOM';
+      else if (roll < 65) randomType = 'HIDE_OTHERS';
+      else if (roll < 69) randomType = 'HIDE_SELF';
+      else if (roll < 74) randomType = 'SHIELD';
+      else if (roll < 79) randomType = 'DOUBLE_SCORE';
+      else if (roll < 82) randomType = 'FEVER_TIME';
+      else if (roll < 86) randomType = 'SCORE_PLUS_1';
+      else if (roll < 88) randomType = 'SCORE_MINUS_1';
+      else if (roll < 90) randomType = 'SCORE_PLUS_3';
+      else if (roll < 91) randomType = 'SCORE_MINUS_3';
+      else if (roll < 92) randomType = 'RANDOM_OTHER_PLUS_1';
+      else if (roll < 93) randomType = 'RANDOM_OTHER_PLUS_3';
+      else if (roll < 93.5) randomType = 'ALL_PLUS_1';
+      else if (roll < 94) randomType = 'ALL_PLUS_3';
+      else if (roll < 95) randomType = 'RANDOM_OTHER_MINUS_1';
+      else if (roll < 96) randomType = 'RANDOM_OTHER_MINUS_3';
+      else if (roll < 96.5) randomType = 'ALL_MINUS_1';
+      else if (roll < 97) randomType = 'ALL_MINUS_3';
+      else if (roll < 99) randomType = 'SWAP_SCORE';
+      else if (roll < 99.3) randomType = 'RESET_SELF';
+      else if (roll < 99.6) randomType = 'RESET_ALL';
       else randomType = 'TIME_PLUS';
 
       if (randomType !== 'NOTHING') {
@@ -534,13 +550,15 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
     'text-yellow-400'
   ];
 
+  const hasShield = activeItems.some(it => it.type === 'SHIELD');
   const textColor = team > 0 ? TEAM_TEXT_COLORS[team] : config.textClass;
 
   return (
-    <div className={`relative flex flex-col h-full p-1 sm:p-2 border-4 rounded-2xl ${borderColor} ${TEAM_BOARD_BGS[team]} transition-colors duration-300 ${
+    <div className={`relative flex flex-col h-full p-1 sm:p-2 border-4 rounded-2xl ${TEAM_BOARD_BGS[team]} transition-all duration-300 ${
       status === 'correct' ? 'bg-green-900/60 border-green-500' : 
-      (status === 'wrong' || status === 'attacked' || (isAttacked && !activeItems.some(it => it.type === 'SHIELD'))) ? 'bg-red-900/60 border-red-500' : 
-      ''
+      (status === 'wrong' || status === 'attacked' || (isAttacked && !hasShield)) ? 'bg-red-900/60 border-red-500' : 
+      hasShield ? 'border-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.6)]' :
+      borderColor
     }`}>
       {floats.map(f => (
         <div key={f.key} className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 overflow-visible">
@@ -1118,6 +1136,41 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
       setScores(prev => ({ ...prev, [playerId]: Math.max(0, (prev[playerId] || 0) + delta) }));
       if (delta < 0) {
         setShortAttackTimes(prev => ({ ...prev, [playerId]: Date.now() }));
+      }
+      return;
+    }
+
+    if (type === 'RANDOM_OTHER_PLUS_1' || type === 'RANDOM_OTHER_PLUS_3' || type === 'RANDOM_OTHER_MINUS_1' || type === 'RANDOM_OTHER_MINUS_3') {
+      const others = activePlayers.filter(p => p.id !== playerId);
+      if (others.length > 0) {
+        const randomOther = others[Math.floor(Math.random() * others.length)];
+        const delta = type === 'RANDOM_OTHER_PLUS_1' ? 1 : type === 'RANDOM_OTHER_PLUS_3' ? 3 : type === 'RANDOM_OTHER_MINUS_1' ? -1 : -3;
+        setScores(prev => ({ ...prev, [randomOther.id]: Math.max(0, (prev[randomOther.id] || 0) + delta) }));
+        if (delta < 0) {
+          setShortAttackTimes(prev => ({ ...prev, [randomOther.id]: Date.now() }));
+        }
+      }
+      return;
+    }
+
+    if (type === 'ALL_PLUS_1' || type === 'ALL_PLUS_3' || type === 'ALL_MINUS_1' || type === 'ALL_MINUS_3') {
+      const delta = type === 'ALL_PLUS_1' ? 1 : type === 'ALL_PLUS_3' ? 3 : type === 'ALL_MINUS_1' ? -1 : -3;
+      const now = Date.now();
+      setScores(prev => {
+        const next = { ...prev };
+        activePlayers.forEach(p => {
+          next[p.id] = Math.max(0, (next[p.id] || 0) + delta);
+        });
+        return next;
+      });
+      if (delta < 0) {
+        setShortAttackTimes(prev => {
+          const next = { ...prev };
+          activePlayers.forEach(p => {
+            next[p.id] = now;
+          });
+          return next;
+        });
       }
       return;
     }
