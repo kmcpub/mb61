@@ -145,7 +145,7 @@ type GameOptions = {
   isItemMode: boolean;
 };
 
-type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD' | 'SCORE_PLUS_1' | 'SCORE_MINUS_1' | 'SCORE_PLUS_3' | 'SCORE_MINUS_3' | 'SWAP_SCORE' | 'NOTHING';
+type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD' | 'SCORE_PLUS_1' | 'SCORE_MINUS_1' | 'SCORE_PLUS_3' | 'SCORE_MINUS_3' | 'SWAP_SCORE' | 'NOTHING' | 'RESET_SELF' | 'RESET_ALL';
 
 const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, duration?: number }> = {
   TIME_PLUS: { name: '+10초', emoji: '🎁', color: 'text-green-400' },
@@ -153,7 +153,7 @@ const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, 
   FEVER_TIME: { name: '점수 3배', emoji: '🔥', color: 'text-orange-500', duration: 10 },
   HIDE_RANDOM: { name: '랜덤 가리기', emoji: '🌫️', color: 'text-gray-400', duration: 10 },
   HIDE_OTHERS: { name: '나 빼고 가리기', emoji: '🌫️🌫️', color: 'text-gray-300', duration: 10 },
-  HIDE_SELF: { name: '나 가리기', emoji: '💀', color: 'text-red-500', duration: 10 },
+  HIDE_SELF: { name: '나 가리기', emoji: '😵‍💫', color: 'text-red-500', duration: 10 },
   SHIELD: { name: '방어막', emoji: '🛡️', color: 'text-blue-400', duration: 20 },
   SCORE_PLUS_1: { name: '+1점', emoji: '💎', color: 'text-blue-300' },
   SCORE_MINUS_1: { name: '-1점', emoji: '💣', color: 'text-red-400' },
@@ -161,6 +161,8 @@ const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, 
   SCORE_MINUS_3: { name: '-3점', emoji: '💥', color: 'text-red-600' },
   SWAP_SCORE: { name: '점수 바꾸기', emoji: '🔄', color: 'text-purple-400' },
   NOTHING: { name: '아무 일도 없음', emoji: '🍃', color: 'text-gray-500' },
+  RESET_SELF: { name: '자기 점수 초기화', emoji: '🧹', color: 'text-red-700' },
+  RESET_ALL: { name: '모든 점수 초기화', emoji: '🌪️', color: 'text-red-900' },
 };
 
 type ActiveItem = {
@@ -294,19 +296,31 @@ type PlayerBoardProps = {
   borderColor: string;
   isPaused?: boolean;
   isAttacked?: boolean;
+  shortAttackTime?: number;
 };
 
-const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems, onCorrect, onWrong, onApplyItem, onAttack, borderColor, isPaused, isAttacked }: PlayerBoardProps) => {
+const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems, onCorrect, onWrong, onApplyItem, onAttack, borderColor, isPaused, isAttacked, shortAttackTime }: PlayerBoardProps) => {
   const [problem, setProblem] = useState<Problem>(generateProblem(options.difficulty, options.digitRange));
   const [input, setInput] = useState<InputState>({ whole: '', num: '', den: '' });
   const [activeField, setActiveField] = useState<ActiveField>('whole');
-  const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
+  const [status, setStatus] = useState<'idle' | 'correct' | 'wrong' | 'attacked'>('idle');
   const [floats, setFloats] = useState<{id: number, key: number, emoji: string | React.ReactNode}[]>([]);
   const [combo, setCombo] = useState(0);
   const [itemEffect, setItemEffect] = useState<{ type: ItemType, id: number } | null>(null);
 
   const currentRank = score > 0 ? 1 + allScores.filter(s => s > score).length : null;
   const medal = currentRank === 1 ? '🥇' : currentRank === 2 ? '🥈' : currentRank === 3 ? '🥉' : null;
+
+  useEffect(() => {
+    if (shortAttackTime) {
+      setStatus('attacked');
+      playSound('wrong');
+      setFloats(prev => [...prev, { id: Date.now(), key: Math.random(), emoji: '😵‍💫' }]);
+      setTimeout(() => {
+        setStatus('idle');
+      }, 600);
+    }
+  }, [shortAttackTime]);
 
   const gcd = (a: number, b: number): number => {
     return b === 0 ? a : gcd(b, a % b);
@@ -375,7 +389,7 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
       let randomType: ItemType = 'NOTHING';
       
       if (roll < 50) randomType = 'NOTHING';
-      else if (roll < 58) randomType = 'HIDE_RANDOM';
+      else if (roll < 59) randomType = 'HIDE_RANDOM';
       else if (roll < 66) randomType = 'HIDE_OTHERS';
       else if (roll < 71) randomType = 'HIDE_SELF';
       else if (roll < 76) randomType = 'SHIELD';
@@ -386,6 +400,8 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
       else if (roll < 95) randomType = 'SCORE_PLUS_3';
       else if (roll < 96) randomType = 'SCORE_MINUS_3';
       else if (roll < 97) randomType = 'SWAP_SCORE';
+      else if (roll < 97.5) randomType = 'RESET_SELF';
+      else if (roll < 98) randomType = 'RESET_ALL';
       else randomType = 'TIME_PLUS';
 
       if (randomType !== 'NOTHING') {
@@ -523,7 +539,7 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
   return (
     <div className={`relative flex flex-col h-full p-1 sm:p-2 border-4 rounded-2xl ${borderColor} ${TEAM_BOARD_BGS[team]} transition-colors duration-300 ${
       status === 'correct' ? 'bg-green-900/60 border-green-500' : 
-      status === 'wrong' ? 'bg-red-900/60 border-red-500' : 
+      (status === 'wrong' || status === 'attacked' || (isAttacked && !activeItems.some(it => it.type === 'SHIELD'))) ? 'bg-red-900/60 border-red-500' : 
       ''
     }`}>
       {floats.map(f => (
@@ -572,7 +588,7 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
       
       <div className={`flex-1 flex flex-col items-center justify-center rounded-lg shadow-inner mb-2 p-1 transition-colors duration-300 ${
         status === 'correct' ? 'bg-green-900/50' : 
-        status === 'wrong' ? 'bg-red-900/50' : 
+        (status === 'wrong' || status === 'attacked' || (isAttacked && !activeItems.some(it => it.type === 'SHIELD'))) ? 'bg-red-900/50' : 
         'bg-gray-900'
       }`}>
         {!isPaused && (
@@ -581,7 +597,7 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
               {/* Fog Overlay for Attacks - Now restricted to problem area */}
               {isAttacked && !activeItems.some(it => it.type === 'SHIELD') && (
                 <div className="absolute inset-0 z-40 bg-gray-900/95 backdrop-blur-xl flex items-center justify-center animate-pulse rounded-lg">
-                  <div className="text-4xl sm:text-5xl">🌫️</div>
+                  <div className="text-4xl sm:text-5xl">😵‍💫</div>
                 </div>
               )}
               <div className="text-[clamp(1rem,2vw,2rem)] sm:text-2xl md:text-3xl flex items-center justify-center whitespace-nowrap text-gray-100">
@@ -700,7 +716,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
     localStorage.setItem('isItemMode', isItemMode.toString());
     localStorage.setItem('difficulty', difficulty);
     localStorage.setItem('digitRange', JSON.stringify(digitRange));
-  }, [time, mode, individualCount, teamAssignments, requireIrreducible, requireMixed, difficulty, digitRange]);
+  }, [time, mode, individualCount, teamAssignments, requireIrreducible, requireMixed, isItemMode, difficulty, digitRange]);
 
   const handleStart = () => {
     initAudio();
@@ -749,7 +765,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
           setSubtitle(e.target.value);
           localStorage.setItem('subtitle', e.target.value);
         }}
-        className="text-xl sm:text-2xl text-gray-400 bg-transparent text-center focus:outline-none focus:border-b border-gray-500 mb-2"
+        className="text-xl sm:text-2xl text-gray-400 bg-transparent text-center focus:outline-none focus:border-b border-gray-500 mb-2 w-full max-w-2xl"
         placeholder="부제목 입력"
       />
       <h1 className="text-4xl sm:text-7xl font-black text-blue-400 mb-8 drop-shadow-md text-center leading-tight w-full max-w-7xl">
@@ -929,6 +945,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
   const [timeLeft, setTimeLeft] = useState(duration);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [attacks, setAttacks] = useState<Record<number, { duration: number, attackerId: number }>>({}); // id -> {seconds left, attackerId}
+  const [shortAttackTimes, setShortAttackTimes] = useState<Record<number, number>>({});
   const [activeBuffs, setActiveBuffs] = useState<Record<number, ActiveItem[]>>({});
 
   useEffect(() => {
@@ -1099,18 +1116,55 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     if (type === 'SCORE_PLUS_1' || type === 'SCORE_MINUS_1' || type === 'SCORE_PLUS_3' || type === 'SCORE_MINUS_3') {
       const delta = type === 'SCORE_PLUS_1' ? 1 : type === 'SCORE_MINUS_1' ? -1 : type === 'SCORE_PLUS_3' ? 3 : -3;
       setScores(prev => ({ ...prev, [playerId]: Math.max(0, (prev[playerId] || 0) + delta) }));
+      if (delta < 0) {
+        setShortAttackTimes(prev => ({ ...prev, [playerId]: Date.now() }));
+      }
       return;
     }
 
     if (type === 'SWAP_SCORE') {
-      setScores(prev => {
-        const others = activePlayers.filter(p => p.id !== playerId);
-        if (others.length === 0) return prev;
+      const others = activePlayers.filter(p => p.id !== playerId);
+      if (others.length > 0) {
         const randomOther = others[Math.floor(Math.random() * others.length)];
+        const now = Date.now();
+        
+        setScores(prev => {
+          const next = { ...prev };
+          const temp = next[playerId] || 0;
+          next[playerId] = next[randomOther.id] || 0;
+          next[randomOther.id] = temp;
+          return next;
+        });
+        
+        setShortAttackTimes(prevTimes => ({ 
+          ...prevTimes, 
+          [playerId]: now, 
+          [randomOther.id]: now 
+        }));
+      }
+      return;
+    }
+
+    if (type === 'RESET_SELF') {
+      setScores(prev => ({ ...prev, [playerId]: 0 }));
+      setShortAttackTimes(prev => ({ ...prev, [playerId]: Date.now() }));
+      return;
+    }
+
+    if (type === 'RESET_ALL') {
+      setScores(prev => {
         const next = { ...prev };
-        const temp = next[playerId] || 0;
-        next[playerId] = next[randomOther.id] || 0;
-        next[randomOther.id] = temp;
+        Object.keys(next).forEach(id => {
+          next[Number(id)] = 0;
+        });
+        return next;
+      });
+      const now = Date.now();
+      setShortAttackTimes(prev => {
+        const next = { ...prev };
+        activePlayers.forEach(p => {
+          next[p.id] = now;
+        });
         return next;
       });
       return;
@@ -1145,6 +1199,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     if (targetId === 'others') {
       setAttacks(prev => {
         const next = { ...prev };
+        const now = Date.now();
         activePlayers.forEach(p => {
           const isOpponent = mode === 'TEAM' && attacker.team > 0 
             ? p.team !== attacker.team 
@@ -1152,6 +1207,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
             
           if (isOpponent) {
             next[p.id] = { duration: 10, attackerId };
+            setShortAttackTimes(prevTimes => ({ ...prevTimes, [p.id]: now }));
           }
         });
         return next;
@@ -1164,10 +1220,14 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
         
       if (opponents.length > 0) {
         const randomOpp = opponents[Math.floor(Math.random() * opponents.length)];
+        const now = Date.now();
         setAttacks(prev => ({ ...prev, [randomOpp.id]: { duration: 10, attackerId } }));
+        setShortAttackTimes(prev => ({ ...prev, [randomOpp.id]: now }));
       }
     } else {
+      const now = Date.now();
       setAttacks(prev => ({ ...prev, [targetId]: { duration: 10, attackerId } }));
+      setShortAttackTimes(prev => ({ ...prev, [targetId]: now }));
     }
   }, [activePlayers, mode]);
 
@@ -1199,10 +1259,15 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
       {/* Top Bar */}
       <div className={`flex justify-between items-center px-4 py-2 shadow-md z-10 border-b border-gray-800 transition-colors duration-300 ${timeLeft <= 10 ? 'animate-blink-red' : 'bg-gray-900'}`}>
         <div className="flex items-center gap-4 hidden sm:flex">
-          <h1 className="text-lg sm:text-xl font-bold text-gray-300">대분수 ÷ 자연수 {options.isItemMode && <span className="text-yellow-400 ml-2">✨ 아이템전 ✨</span>}</h1>
           <button onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors touch-none select-none" title="전체 화면">
             <Maximize size={20} />
           </button>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-300">
+            대분수 ÷ 자연수 
+            {options.isItemMode && <span className="text-yellow-400 ml-2">✨ 아이템전 ✨</span>}
+            {options.requireIrreducible && <span className="text-blue-400 ml-2">🔹 기약분수</span>}
+            {options.requireMixed && <span className="text-orange-400 ml-2">🔸 대분수</span>}
+          </h1>
         </div>
 
         <div className={`timer-text text-4xl sm:text-6xl lg:text-7xl font-mono tracking-wider ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>
@@ -1248,6 +1313,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
               borderColor={mode === 'TEAM' ? TEAM_COLORS[player.team] : 'border-gray-700'}
               isPaused={isPaused}
               isAttacked={(attacks[player.id]?.duration || 0) > 0 && !(activeBuffs[player.id] || []).some(it => it.type === 'SHIELD')}
+              shortAttackTime={shortAttackTimes[player.id]}
             />
           </div>
         ))}
