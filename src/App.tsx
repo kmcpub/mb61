@@ -145,7 +145,7 @@ type GameOptions = {
   isItemMode: boolean;
 };
 
-type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD';
+type ItemType = 'TIME_PLUS' | 'DOUBLE_SCORE' | 'FEVER_TIME' | 'HIDE_RANDOM' | 'HIDE_OTHERS' | 'HIDE_SELF' | 'SHIELD' | 'SCORE_PLUS_1' | 'SCORE_MINUS_1' | 'SCORE_PLUS_3' | 'SCORE_MINUS_3' | 'SWAP_SCORE' | 'NOTHING';
 
 const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, duration?: number }> = {
   TIME_PLUS: { name: '+10초', emoji: '🎁', color: 'text-green-400' },
@@ -155,6 +155,12 @@ const ITEM_INFO: Record<ItemType, { name: string, emoji: string, color: string, 
   HIDE_OTHERS: { name: '나 빼고 가리기', emoji: '🌫️🌫️', color: 'text-gray-300', duration: 10 },
   HIDE_SELF: { name: '나 가리기', emoji: '💀', color: 'text-red-500', duration: 10 },
   SHIELD: { name: '방어막', emoji: '🛡️', color: 'text-blue-400', duration: 20 },
+  SCORE_PLUS_1: { name: '+1점', emoji: '💎', color: 'text-blue-300' },
+  SCORE_MINUS_1: { name: '-1점', emoji: '💣', color: 'text-red-400' },
+  SCORE_PLUS_3: { name: '+3점', emoji: '👑', color: 'text-yellow-300' },
+  SCORE_MINUS_3: { name: '-3점', emoji: '💥', color: 'text-red-600' },
+  SWAP_SCORE: { name: '점수 바꾸기', emoji: '🔄', color: 'text-purple-400' },
+  NOTHING: { name: '아무 일도 없음', emoji: '🍃', color: 'text-gray-500' },
 };
 
 type ActiveItem = {
@@ -364,22 +370,38 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
     onCorrect(id, scoreMultiplier);
 
     // Item Generation
-    if (options.isItemMode && Math.random() < 0.5) {
-      playSound('item' as any);
-      const itemTypes: ItemType[] = ['TIME_PLUS', 'DOUBLE_SCORE', 'FEVER_TIME', 'HIDE_RANDOM', 'HIDE_OTHERS', 'HIDE_SELF', 'SHIELD'];
-      const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+    if (options.isItemMode) {
+      const roll = Math.random() * 100;
+      let randomType: ItemType = 'NOTHING';
       
-      setItemEffect({ type: randomType, id: Date.now() });
-      setTimeout(() => setItemEffect(null), 2000);
+      if (roll < 50) randomType = 'NOTHING';
+      else if (roll < 58) randomType = 'HIDE_RANDOM';
+      else if (roll < 66) randomType = 'HIDE_OTHERS';
+      else if (roll < 71) randomType = 'HIDE_SELF';
+      else if (roll < 76) randomType = 'SHIELD';
+      else if (roll < 82) randomType = 'DOUBLE_SCORE';
+      else if (roll < 85) randomType = 'FEVER_TIME';
+      else if (roll < 90) randomType = 'SCORE_PLUS_1';
+      else if (roll < 92) randomType = 'SCORE_MINUS_1';
+      else if (roll < 95) randomType = 'SCORE_PLUS_3';
+      else if (roll < 96) randomType = 'SCORE_MINUS_3';
+      else if (roll < 97) randomType = 'SWAP_SCORE';
+      else randomType = 'TIME_PLUS';
 
-      if (randomType === 'HIDE_RANDOM') {
-        onAttack(id, -1, 'HIDE');
-      } else if (randomType === 'HIDE_OTHERS') {
-        onAttack(id, 'others', 'HIDE');
-      } else if (randomType === 'HIDE_SELF') {
-        onAttack(id, id, 'HIDE');
-      } else {
-        onApplyItem(randomType);
+      if (randomType !== 'NOTHING') {
+        playSound('item' as any);
+        setItemEffect({ type: randomType, id: Date.now() });
+        setTimeout(() => setItemEffect(null), 2000);
+
+        if (randomType === 'HIDE_RANDOM') {
+          onAttack(id, -1, 'HIDE');
+        } else if (randomType === 'HIDE_OTHERS') {
+          onAttack(id, 'others', 'HIDE');
+        } else if (randomType === 'HIDE_SELF') {
+          onAttack(id, id, 'HIDE');
+        } else {
+          onApplyItem(randomType);
+        }
       }
     }
     setTimeout(() => {
@@ -998,16 +1020,21 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     prevTeamScoresRef.current = teamScores;
   }, [teamScores, teamScoreAnim]);
 
+  const scoresRef = useRef(scores);
+  useEffect(() => {
+    scoresRef.current = scores;
+  }, [scores]);
+
   useEffect(() => {
     if (isPaused || timeLeft <= 0) {
-      if (timeLeft <= 0) onEnd(scores);
+      if (timeLeft <= 0) onEnd(scoresRef.current);
       return;
     }
     const timer = setInterval(() => {
       setTimeLeft(prev => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, scores, onEnd, isPaused]);
+  }, [isPaused, timeLeft <= 0, onEnd]);
 
   useEffect(() => {
     if (timeLeft <= 10 && timeLeft > 0) {
@@ -1062,8 +1089,30 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
   }, [activePlayers, mode]);
 
   const handleApplyItem = useCallback((playerId: number, type: ItemType) => {
+    if (type === 'NOTHING') return;
+
     if (type === 'TIME_PLUS') {
       setTimeLeft(prev => prev + 10);
+      return;
+    }
+
+    if (type === 'SCORE_PLUS_1' || type === 'SCORE_MINUS_1' || type === 'SCORE_PLUS_3' || type === 'SCORE_MINUS_3') {
+      const delta = type === 'SCORE_PLUS_1' ? 1 : type === 'SCORE_MINUS_1' ? -1 : type === 'SCORE_PLUS_3' ? 3 : -3;
+      setScores(prev => ({ ...prev, [playerId]: Math.max(0, (prev[playerId] || 0) + delta) }));
+      return;
+    }
+
+    if (type === 'SWAP_SCORE') {
+      setScores(prev => {
+        const others = activePlayers.filter(p => p.id !== playerId);
+        if (others.length === 0) return prev;
+        const randomOther = others[Math.floor(Math.random() * others.length)];
+        const next = { ...prev };
+        const temp = next[playerId] || 0;
+        next[playerId] = next[randomOther.id] || 0;
+        next[randomOther.id] = temp;
+        return next;
+      });
       return;
     }
 
