@@ -130,14 +130,35 @@ const DIFFICULTY_LABELS: Record<Difficulty, { label: string, emoji: string, desc
   CHALLENGER: { label: '챌린저', emoji: '🎖️', desc: '3자리 2개' },
 };
 
+type WorldType = 'FRACTION' | 'DECIMAL';
+
+type FractionMission = 'MIXED_NATURAL';
+type DecimalMission = 
+  | 'DECIMAL_NATURAL_NO_CARRY'
+  | 'DECIMAL_NATURAL_CARRY'
+  | 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1'
+  | 'DECIMAL_NATURAL_BRING_DOWN_ZERO'
+  | 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT'
+  | 'NATURAL_NATURAL'
+  | 'NATURAL_NATURAL_RANDOM';
+
 type Problem = {
-  A: number;
-  B: number;
-  C: number;
-  D: number;
+  world: WorldType;
+  // Fraction World
+  A?: number;
+  B?: number;
+  C?: number;
+  D?: number;
+  // Decimal World
+  dividend?: number;
+  divisor?: number;
+  quotient?: number;
 };
 
 type GameOptions = {
+  world: WorldType;
+  fractionMission: FractionMission;
+  decimalMission: DecimalMission;
   requireIrreducible: boolean;
   requireMixed: boolean;
   difficulty: Difficulty;
@@ -185,7 +206,12 @@ type ActivePlayer = {
   team: number;
 };
 
-function generateProblem(difficulty: Difficulty = 'BRONZE', digitRange: [number, number] = [10, 20]): Problem {
+function generateProblem(options: GameOptions): Problem {
+  if (options.world === 'DECIMAL') {
+    return generateDecimalProblem(options.decimalMission, options.difficulty);
+  }
+
+  const { difficulty, digitRange } = options;
   let digitCounts = [1, 1, 1, 1];
   if (difficulty === 'SILVER') digitCounts = [1, 1, 1, 2];
   else if (difficulty === 'GOLD') digitCounts = [1, 1, 2, 2];
@@ -234,10 +260,100 @@ function generateProblem(difficulty: Difficulty = 'BRONZE', digitRange: [number,
   const simplifiedDen = denominator / common;
 
   if (whole > 9999 || simplifiedNum > 9999 || simplifiedDen > 9999) {
-    return generateProblem(difficulty, digitRange);
+    return generateProblem(options);
   }
 
-  return { A, B, C, D };
+  return { world: 'FRACTION', A, B, C, D };
+}
+
+function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty): Problem {
+  let qDigits = 2;
+  let dDigits = 1;
+  switch (difficulty) {
+    case 'BRONZE': qDigits = 2; dDigits = 1; break;
+    case 'SILVER': qDigits = 3; dDigits = 1; break;
+    case 'GOLD': qDigits = 2; dDigits = 2; break;
+    case 'PLATINUM': qDigits = 3; dDigits = 2; break;
+    case 'DIAMOND': qDigits = 4; dDigits = 2; break;
+    case 'MASTER': qDigits = 3; dDigits = 3; break;
+    case 'CHALLENGER': qDigits = 4; dDigits = 3; break;
+  }
+
+  const genInt = (digits: number) => {
+    if (digits === 1) return Math.floor(Math.random() * 8) + 2; // 2-9
+    const min = Math.pow(10, digits - 1);
+    const max = Math.pow(10, digits) - 1;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
+  const TERMINATING_DIVISORS: Record<number, number[]> = {
+    1: [2, 4, 5, 8],
+    2: [10, 16, 20, 25, 32, 40, 50, 64, 80],
+    3: [100, 125, 128, 160, 200, 250, 256, 320, 400, 500, 512, 640, 800],
+    4: [1000, 1024, 1250, 1600, 2000, 2048, 2500, 3200, 4000, 5000, 6400, 8000]
+  };
+
+  let dividend = 0;
+  let divisor = 0;
+  let quotient = 0;
+
+  if (mission === 'DECIMAL_NATURAL_NO_CARRY') {
+    divisor = genInt(1);
+    let qIntStr = '';
+    for (let i = 0; i < qDigits; i++) {
+      const maxDigit = Math.floor(9 / divisor);
+      const digit = Math.floor(Math.random() * maxDigit) + 1;
+      qIntStr += digit;
+    }
+    const qInt = parseInt(qIntStr, 10);
+    const decimalPos = Math.floor(Math.random() * (qDigits - 1)) + 1;
+    quotient = qInt / Math.pow(10, qDigits - decimalPos);
+    dividend = parseFloat((quotient * divisor).toFixed(10));
+  } else if (mission === 'DECIMAL_NATURAL_CARRY') {
+    divisor = genInt(dDigits);
+    let qInt = genInt(qDigits);
+    const decimalPos = Math.floor(Math.random() * (qDigits - 1)) + 1;
+    quotient = qInt / Math.pow(10, qDigits - decimalPos);
+    dividend = parseFloat((quotient * divisor).toFixed(10));
+  } else if (mission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1') {
+    divisor = genInt(dDigits);
+    let qInt = genInt(qDigits);
+    quotient = qInt / Math.pow(10, qDigits);
+    dividend = parseFloat((quotient * divisor).toFixed(10));
+  } else if (mission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO') {
+    const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
+    divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
+    
+    let qIntStr = genInt(qDigits - 1).toString();
+    if (divisor % 2 === 0) {
+      qIntStr += '5';
+    } else {
+      qIntStr += '2';
+    }
+    const qInt = parseInt(qIntStr, 10);
+    const decimalPos = Math.floor(Math.random() * (qDigits - 1)) + 1;
+    quotient = qInt / Math.pow(10, qDigits - decimalPos);
+    dividend = parseFloat((quotient * divisor).toFixed(10));
+  } else if (mission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT') {
+    divisor = genInt(dDigits);
+    let qIntStr = genInt(1).toString() + '0';
+    if (qDigits > 2) {
+      qIntStr += genInt(qDigits - 2).toString();
+    } else {
+      qIntStr += genInt(1).toString();
+    }
+    const qInt = parseInt(qIntStr, 10);
+    quotient = qInt / Math.pow(10, qIntStr.length - 1);
+    dividend = parseFloat((quotient * divisor).toFixed(10));
+  } else if (mission === 'NATURAL_NATURAL' || mission === 'NATURAL_NATURAL_RANDOM') {
+    const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
+    divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
+    dividend = genInt(qDigits);
+    if (dividend % divisor === 0) dividend += 1;
+    quotient = parseFloat((dividend / divisor).toFixed(10));
+  }
+
+  return { world: 'DECIMAL', dividend, divisor, quotient };
 }
 
 const PLAYERS = [
@@ -286,8 +402,9 @@ type InputState = {
   whole: string;
   num: string;
   den: string;
+  decimal: string;
 };
-type ActiveField = 'whole' | 'num' | 'den';
+type ActiveField = 'whole' | 'num' | 'den' | 'decimal';
 
 type PlayerBoardProps = {
   id: number;
@@ -308,9 +425,9 @@ type PlayerBoardProps = {
 };
 
 const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems, onCorrect, onWrong, onApplyItem, onAttack, borderColor, isPaused, isAttacked, shortAttackTime }: PlayerBoardProps) => {
-  const [problem, setProblem] = useState<Problem>(generateProblem(options.difficulty, options.digitRange));
-  const [input, setInput] = useState<InputState>({ whole: '', num: '', den: '' });
-  const [activeField, setActiveField] = useState<ActiveField>('whole');
+  const [problem, setProblem] = useState<Problem>(generateProblem(options));
+  const [input, setInput] = useState<InputState>({ whole: '', num: '', den: '', decimal: '' });
+  const [activeField, setActiveField] = useState<ActiveField>(options.world === 'DECIMAL' ? 'decimal' : 'whole');
   const [status, setStatus] = useState<'idle' | 'correct' | 'wrong' | 'attacked'>('idle');
   const [floats, setFloats] = useState<{id: number, key: number, emoji: string | React.ReactNode}[]>([]);
   const [combo, setCombo] = useState(0);
@@ -437,9 +554,9 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
       }
     }
     setTimeout(() => {
-      setProblem(generateProblem(options.difficulty, options.digitRange));
-      setInput({ whole: '', num: '', den: '' });
-      setActiveField('whole');
+      setProblem(generateProblem(options));
+      setInput({ whole: '', num: '', den: '', decimal: '' });
+      setActiveField(options.world === 'DECIMAL' ? 'decimal' : 'whole');
       setStatus('idle');
     }, 600);
   }, [id, config.emoji, score, allScores, options, activeItems, onCorrect, onAttack, onApplyItem]);
@@ -451,13 +568,24 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
     setFloats(prev => [...prev, { id: Date.now(), key: Math.random(), emoji: '💀' }]);
     onWrong(id);
     setTimeout(() => {
-      setInput({ whole: '', num: '', den: '' });
-      setActiveField('whole');
+      setInput({ whole: '', num: '', den: '', decimal: '' });
+      setActiveField(options.world === 'DECIMAL' ? 'decimal' : 'whole');
       setStatus('idle');
     }, 600);
-  }, [id, onWrong]);
+  }, [id, onWrong, options.world]);
 
   const checkAnswer = useCallback(() => {
+    if (options.world === 'DECIMAL') {
+      if (!input.decimal) return;
+      const userAns = parseFloat(input.decimal);
+      if (Math.abs(userAns - (problem.quotient || 0)) < 0.0000001) {
+        handleCorrect();
+      } else {
+        handleWrong();
+      }
+      return;
+    }
+
     const w = parseInt(input.whole, 10) || 0;
     const n = parseInt(input.num, 10) || 0;
     const d = parseInt(input.den, 10) || 1;
@@ -480,8 +608,8 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
     const userNum = w * d + n;
     const userDen = d;
     
-    const correctNum = problem.A * problem.C + problem.B;
-    const correctDen = problem.C * problem.D;
+    const correctNum = (problem.A || 0) * (problem.C || 1) + (problem.B || 0);
+    const correctDen = (problem.C || 1) * (problem.D || 1);
     
     if (userNum * correctDen === correctNum * userDen && userNum > 0) {
       // Check options
@@ -516,9 +644,11 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
       playSound('click');
       checkAnswer();
     } else if (k === '대') {
+      if (options.world === 'DECIMAL') return;
       playSound('input_whole');
       setActiveField('whole');
     } else if (k === '분') {
+      if (options.world === 'DECIMAL') return;
       if (activeField === 'den') {
         playSound('input_num');
         setActiveField('num');
@@ -526,13 +656,19 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
         playSound('input_den');
         setActiveField('den');
       }
+    } else if (k === '.') {
+      if (options.world !== 'DECIMAL') return;
+      playSound('click');
+      if (!input.decimal.includes('.')) {
+        setInput(prev => ({ ...prev, decimal: prev.decimal + '.' }));
+      }
     } else {
       playSound('click');
-      if (input[activeField].length < 4) {
+      if (input[activeField].length < (options.world === 'DECIMAL' ? 10 : 4)) {
         setInput(prev => ({ ...prev, [activeField]: prev[activeField] + k }));
       }
     }
-  }, [status, activeField, input, checkAnswer]);
+  }, [status, activeField, input, checkAnswer, options.world]);
 
   const TEAM_BOARD_BGS = [
     config.bgClass, // 0: Individual
@@ -619,43 +755,63 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
                 </div>
               )}
               <div className="text-[clamp(1rem,2vw,2rem)] sm:text-2xl md:text-3xl flex items-center justify-center whitespace-nowrap text-gray-100">
-                <Fraction whole={problem.A} num={problem.B} den={problem.C} />
-                <span className="mx-1">÷</span>
-                <span>{problem.D}</span>
-                <span className="mx-1">=</span>
+                {options.world === 'DECIMAL' ? (
+                  <>
+                    <span>{problem.dividend}</span>
+                    <span className="mx-1">÷</span>
+                    <span>{problem.divisor}</span>
+                    <span className="mx-1">=</span>
+                  </>
+                ) : (
+                  <>
+                    <Fraction whole={problem.A} num={problem.B} den={problem.C} />
+                    <span className="mx-1">÷</span>
+                    <span>{problem.D}</span>
+                    <span className="mx-1">=</span>
+                  </>
+                )}
               </div>
             </div>
             
             {/* Input Area */}
             <div className="h-16 sm:h-20 w-full flex items-center justify-center text-xl sm:text-2xl font-bold">
-              <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                {/* Whole */}
+              {options.world === 'DECIMAL' ? (
                 <div 
-                  className={`w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'whole' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
-                  onPointerDown={(e) => { e.preventDefault(); setActiveField('whole'); }}
+                  className={`w-32 h-10 sm:w-40 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'decimal' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
+                  onPointerDown={(e) => { e.preventDefault(); setActiveField('decimal'); }}
                 >
-                  {input.whole}
+                  {input.decimal}
                 </div>
-                {/* Fraction Part */}
-                <div className="flex flex-col space-y-1 items-center justify-center">
-                  {/* Numerator */}
+              ) : (
+                <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                  {/* Whole */}
                   <div 
-                    className={`w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'num' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
-                    onPointerDown={(e) => { e.preventDefault(); setActiveField('num'); }}
+                    className={`w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'whole' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
+                    onPointerDown={(e) => { e.preventDefault(); setActiveField('whole'); }}
                   >
-                    {input.num}
+                    {input.whole}
                   </div>
-                  {/* Divider */}
-                  <div className="w-full h-0.5 bg-gray-500"></div>
-                  {/* Denominator */}
-                  <div 
-                    className={`w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'den' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
-                    onPointerDown={(e) => { e.preventDefault(); setActiveField('den'); }}
-                  >
-                    {input.den}
+                  {/* Fraction Part */}
+                  <div className="flex flex-col space-y-1 items-center justify-center">
+                    {/* Numerator */}
+                    <div 
+                      className={`w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'num' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
+                      onPointerDown={(e) => { e.preventDefault(); setActiveField('num'); }}
+                    >
+                      {input.num}
+                    </div>
+                    {/* Divider */}
+                    <div className="w-full h-0.5 bg-gray-500"></div>
+                    {/* Denominator */}
+                    <div 
+                      className={`w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center border-2 rounded cursor-pointer transition-colors touch-none ${activeField === 'den' ? 'border-blue-500 bg-gray-700 text-blue-300' : 'border-gray-600 bg-gray-800 text-gray-300'}`}
+                      onPointerDown={(e) => { e.preventDefault(); setActiveField('den'); }}
+                    >
+                      {input.den}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </>
         )}
@@ -671,24 +827,43 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
             {k}
           </button>
         ))}
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleKey('대'); }} 
-          className="aspect-square bg-gray-800 border border-gray-600 rounded font-bold text-lg sm:text-xl shadow-sm active:bg-gray-700 touch-none text-gray-400 flex items-center justify-center select-none"
-        >
-          대
-        </button>
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleKey('0'); }} 
-          className="aspect-square bg-gray-700 border border-gray-600 text-gray-400 rounded font-bold text-xl sm:text-2xl shadow-sm active:bg-gray-600 touch-none flex items-center justify-center select-none"
-        >
-          0
-        </button>
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); handleKey('분'); }} 
-          className="aspect-square bg-gray-800 border border-gray-600 rounded font-bold text-lg sm:text-xl shadow-sm active:bg-gray-700 touch-none text-gray-400 flex items-center justify-center select-none"
-        >
-          분
-        </button>
+        {options.world === 'DECIMAL' ? (
+          <>
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); handleKey('0'); }} 
+              className="col-span-2 bg-gray-700 border border-gray-600 text-gray-400 rounded font-bold text-xl sm:text-2xl shadow-sm active:bg-gray-600 touch-none flex items-center justify-center select-none"
+            >
+              0
+            </button>
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); handleKey('.'); }} 
+              className="aspect-square bg-gray-800 border border-gray-600 rounded font-bold text-xl sm:text-2xl shadow-sm active:bg-gray-700 touch-none text-gray-400 flex items-center justify-center select-none"
+            >
+              .
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); handleKey('대'); }} 
+              className="aspect-square bg-gray-800 border border-gray-600 rounded font-bold text-lg sm:text-xl shadow-sm active:bg-gray-700 touch-none text-gray-400 flex items-center justify-center select-none"
+            >
+              대
+            </button>
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); handleKey('0'); }} 
+              className="aspect-square bg-gray-700 border border-gray-600 text-gray-400 rounded font-bold text-xl sm:text-2xl shadow-sm active:bg-gray-600 touch-none flex items-center justify-center select-none"
+            >
+              0
+            </button>
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); handleKey('분'); }} 
+              className="aspect-square bg-gray-800 border border-gray-600 rounded font-bold text-lg sm:text-xl shadow-sm active:bg-gray-700 touch-none text-gray-400 flex items-center justify-center select-none"
+            >
+              분
+            </button>
+          </>
+        )}
         <button 
           onPointerDown={(e) => { e.preventDefault(); handleKey('del'); }} 
           className="aspect-square col-span-1 bg-red-900/50 border border-red-800 text-red-500 rounded font-bold shadow-sm active:bg-red-800/50 flex items-center justify-center touch-none select-none"
@@ -707,6 +882,9 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
 };
 
 const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: number, options: GameOptions, mode: GameMode) => void }) => {
+  const [world, setWorld] = useState<WorldType>(() => (localStorage.getItem('world') as WorldType) || 'FRACTION');
+  const [fractionMission, setFractionMission] = useState<FractionMission>(() => (localStorage.getItem('fractionMission') as FractionMission) || 'MIXED_NATURAL');
+  const [decimalMission, setDecimalMission] = useState<DecimalMission>(() => (localStorage.getItem('decimalMission') as DecimalMission) || 'DECIMAL_NATURAL_NO_CARRY');
   const [subtitle, setSubtitle] = useState(() => localStorage.getItem('subtitle') || '뱃사공 게임즈');
   const [time, setTime] = useState<number | ''>(() => { const s = localStorage.getItem('time'); return s ? parseInt(s) : 60; });
   const [mode, setMode] = useState<GameMode>(() => (localStorage.getItem('mode') as GameMode) || 'INDIVIDUAL');
@@ -725,6 +903,9 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
   });
 
   useEffect(() => {
+    localStorage.setItem('world', world);
+    localStorage.setItem('fractionMission', fractionMission);
+    localStorage.setItem('decimalMission', decimalMission);
     localStorage.setItem('time', time.toString());
     localStorage.setItem('mode', mode);
     localStorage.setItem('individualCount', individualCount.toString());
@@ -734,7 +915,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
     localStorage.setItem('isItemMode', isItemMode.toString());
     localStorage.setItem('difficulty', difficulty);
     localStorage.setItem('digitRange', JSON.stringify(digitRange));
-  }, [time, mode, individualCount, teamAssignments, requireIrreducible, requireMixed, isItemMode, difficulty, digitRange]);
+  }, [world, fractionMission, decimalMission, time, mode, individualCount, teamAssignments, requireIrreducible, requireMixed, isItemMode, difficulty, digitRange]);
 
   const handleStart = () => {
     initAudio();
@@ -755,7 +936,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
       }
     }
 
-    onStart(players, finalTime, { requireIrreducible, requireMixed, difficulty, digitRange, isItemMode }, mode);
+    onStart(players, finalTime, { world, fractionMission, decimalMission, requireIrreducible, requireMixed, difficulty, digitRange, isItemMode }, mode);
   };
 
   const TEAM_COLORS = [
@@ -787,13 +968,57 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
         placeholder="부제목 입력"
       />
       <h1 className="text-4xl sm:text-7xl font-black text-blue-400 mb-8 drop-shadow-md text-center leading-tight w-full max-w-7xl">
-        👑 대분수 ÷ 자연수 배틀 ⚔️
+        {world === 'FRACTION' ? '👑 분수 배틀 ⚔️' : '👑 소수 배틀 ⚔️'}
       </h1>
       
       <div className="flex flex-col lg:flex-row gap-4 w-full max-w-7xl mb-8">
+        {/* Left Column: World Selection Panel */}
+        <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl w-full lg:w-[320px] border border-gray-700 flex flex-col items-center shrink-0">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">배틀 선택</h2>
+          <div className="flex justify-center gap-4 mb-6 w-full">
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); playSound('click'); setWorld('FRACTION'); }} 
+              className={`flex-1 py-3 rounded-xl font-bold text-xl transition-colors touch-none select-none ${world === 'FRACTION' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+            >
+              분수 배틀
+            </button>
+            <button 
+              onPointerDown={(e) => { e.preventDefault(); playSound('click'); setWorld('DECIMAL'); }} 
+              className={`flex-1 py-3 rounded-xl font-bold text-xl transition-colors touch-none select-none ${world === 'DECIMAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+            >
+              소수 배틀
+            </button>
+          </div>
+          
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">미션 선택</h2>
+          <div className="flex flex-col gap-2 w-full">
+            {world === 'FRACTION' ? (
+              <button 
+                onPointerDown={(e) => { e.preventDefault(); playSound('click'); setFractionMission('MIXED_NATURAL'); }} 
+                className={`w-full py-3 rounded-xl font-bold text-lg transition-colors touch-none select-none ${fractionMission === 'MIXED_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >
+                대분수 ÷ 자연수
+              </button>
+            ) : (
+              <>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_NO_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_NO_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>1. 소수/자연수: 몫&gt;1, 각 자리 나누어떨어짐 (예: 6.2/2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>2. 소수/자연수: 몫&gt;1, 각 자리 나누어떨어지지 않음 (예: 4.23/3)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>3. 소수/자연수: 몫&lt;1 (예: 1.24/2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_BRING_DOWN_ZERO'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>4. 소수/자연수: 소수점 아래 0 내려 계산 (예: 2.6/4)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_ZERO_IN_QUOTIENT'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>5. 소수/자연수: 몫 소수 첫째 자리에 0 (예: 2.14/2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('NATURAL_NATURAL'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'NATURAL_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>6. 자연수/자연수 (예: 3/2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('NATURAL_NATURAL_RANDOM'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'NATURAL_NATURAL_RANDOM' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>7. 자연수/자연수 (랜덤)</button>
+              </>
+            )}
+          </div>
+        </div>
         
-        {/* Participants / Teams Panel */}
-        <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl flex-[2] border border-gray-700 flex flex-col items-center">
+        {/* Right Column: Flex Column */}
+        <div className="flex flex-col gap-4 w-full flex-1">
+          {/* Top Row of Right Column */}
+          <div className="flex flex-col lg:flex-row gap-4 w-full">
+            {/* Participants / Teams Panel */}
+            <div className="bg-gray-800 p-6 rounded-2xl shadow-2xl flex-[2] border border-gray-700 flex flex-col items-center">
           <div className="flex justify-center gap-4 mb-6 w-full">
             <button 
               onPointerDown={(e) => { e.preventDefault(); playSound('click'); setMode('INDIVIDUAL'); }} 
@@ -880,68 +1105,74 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
         <div className="bg-gray-800 p-4 rounded-2xl shadow-2xl flex-1 border border-gray-700 flex flex-col items-center">
           <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">정답 조건</h2>
           <div className="flex flex-col gap-3 w-full">
-            <div className="flex flex-col gap-2 w-full">
-              <div className="flex gap-2 w-full">
-                <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    checked={requireIrreducible}
-                    onChange={(e) => { playSound('click'); setRequireIrreducible(e.target.checked); }}
-                    className="w-5 h-5 accent-blue-500"
-                  />
-                  <span className="text-base text-gray-300">기약분수</span>
-                </label>
-                <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    checked={requireMixed}
-                    onChange={(e) => { playSound('click'); setRequireMixed(e.target.checked); }}
-                    className="w-5 h-5 accent-blue-500"
-                  />
-                  <span className="text-base text-gray-300">대분수</span>
-                </label>
+            {world === 'FRACTION' && (
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-2 w-full">
+                  <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={requireIrreducible}
+                      onChange={(e) => { playSound('click'); setRequireIrreducible(e.target.checked); }}
+                      className="w-5 h-5 accent-blue-500"
+                    />
+                    <span className="text-base text-gray-300">기약분수</span>
+                  </label>
+                  <label className="flex-1 flex items-center justify-center space-x-2 cursor-pointer bg-gray-900 p-3 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={requireMixed}
+                      onChange={(e) => { playSound('click'); setRequireMixed(e.target.checked); }}
+                      className="w-5 h-5 accent-blue-500"
+                    />
+                    <span className="text-base text-gray-300">대분수</span>
+                  </label>
+                </div>
               </div>
-              <label className="w-full flex items-center justify-center space-x-2 cursor-pointer bg-yellow-900/30 p-3 rounded-xl border border-yellow-700/50 hover:border-yellow-500 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={isItemMode}
-                  onChange={(e) => { playSound('click'); setIsItemMode(e.target.checked); }}
-                  className="w-6 h-6 accent-yellow-500"
-                />
-                <span className="text-lg font-bold text-yellow-400">✨ 아이템전 모드 ✨</span>
-              </label>
-            </div>
-            <div className="bg-gray-900 p-3 rounded-xl border border-gray-700">
-              <span className="text-base text-gray-300 block mb-1">2자리 수 범위: {digitRange[0]} ~ {digitRange[1]}</span>
-              <div className="flex gap-2">
-                <input type="number" value={digitRange[0]} onChange={e => setDigitRange([parseInt(e.target.value), digitRange[1]])} className="w-full bg-gray-800 text-white rounded p-1.5 text-center" />
-                <input type="number" value={digitRange[1]} onChange={e => setDigitRange([digitRange[0], parseInt(e.target.value)])} className="w-full bg-gray-800 text-white rounded p-1.5 text-center" />
+            )}
+            <label className="w-full flex items-center justify-center space-x-2 cursor-pointer bg-yellow-900/30 p-3 rounded-xl border border-yellow-700/50 hover:border-yellow-500 transition-colors">
+              <input 
+                type="checkbox" 
+                checked={isItemMode}
+                onChange={(e) => { playSound('click'); setIsItemMode(e.target.checked); }}
+                className="w-6 h-6 accent-yellow-500"
+              />
+              <span className="text-lg font-bold text-yellow-400">✨ 아이템전 모드 ✨</span>
+            </label>
+            {world === 'FRACTION' && (
+              <div className="bg-gray-900 p-3 rounded-xl border border-gray-700">
+                <span className="text-base text-gray-300 block mb-1">2자리 수 범위: {digitRange[0]} ~ {digitRange[1]}</span>
+                <div className="flex gap-2">
+                  <input type="number" value={digitRange[0]} onChange={e => setDigitRange([parseInt(e.target.value), digitRange[1]])} className="w-full bg-gray-800 text-white rounded p-1.5 text-center" />
+                  <input type="number" value={digitRange[1]} onChange={e => setDigitRange([digitRange[0], parseInt(e.target.value)])} className="w-full bg-gray-800 text-white rounded p-1.5 text-center" />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
-
       </div>
-      
-      <div className="bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-7xl mb-8 border border-gray-700 flex flex-col items-center">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">난이도</h2>
-        <div className="flex flex-row w-full gap-1 sm:gap-2 justify-between">
-          {DIFFICULTIES.map(d => {
-            const info = DIFFICULTY_LABELS[d];
-            return (
-              <button
-                key={d}
-                onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDifficulty(d); }}
-                className={`flex-1 min-w-0 py-2 px-0.5 sm:px-2 rounded-lg sm:rounded-xl font-bold flex flex-col items-center justify-center transition-colors touch-none select-none ${
-                  difficulty === d ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                }`}
-              >
-                <span className="text-xs sm:text-base lg:text-lg mb-0.5 sm:mb-1 whitespace-nowrap">{info.emoji} {info.label}</span>
-                <span className="text-[9px] sm:text-xs opacity-80 font-normal text-center leading-tight break-keep">{info.desc}</span>
-              </button>
-            );
-          })}
+
+      {/* Bottom Row of Right Column: Difficulty */}
+        <div className="bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-2xl w-full border border-gray-700 flex flex-col items-center">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-300">난이도</h2>
+          <div className="flex flex-row w-full gap-1 sm:gap-2 justify-between">
+            {DIFFICULTIES.map(d => {
+              const info = DIFFICULTY_LABELS[d];
+              return (
+                <button
+                  key={d}
+                  onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDifficulty(d); }}
+                  className={`flex-1 min-w-0 py-2 px-0.5 sm:px-2 rounded-lg sm:rounded-xl font-bold flex flex-col items-center justify-center transition-colors touch-none select-none ${
+                    difficulty === d ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                  }`}
+                >
+                  <span className="text-xs sm:text-base lg:text-lg mb-0.5 sm:mb-1 whitespace-nowrap">{info.emoji} {info.label}</span>
+                  <span className="text-[9px] sm:text-xs opacity-80 font-normal text-center leading-tight break-keep">{info.desc}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+      </div>
       </div>
       
       <button
@@ -1307,6 +1538,23 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
     'text-yellow-300'
   ];
 
+  const getMissionName = () => {
+    if (options.world === 'FRACTION') {
+      return '대분수 ÷ 자연수';
+    } else {
+      switch (options.decimalMission) {
+        case 'DECIMAL_NATURAL_NO_CARRY': return '1. 소수/자연수: 몫>1, 각 자리 나누어떨어짐';
+        case 'DECIMAL_NATURAL_CARRY': return '2. 소수/자연수: 몫>1, 각 자리 나누어떨어지지 않음';
+        case 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1': return '3. 소수/자연수: 몫<1';
+        case 'DECIMAL_NATURAL_BRING_DOWN_ZERO': return '4. 소수/자연수: 소수점 아래 0 내려 계산';
+        case 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT': return '5. 소수/자연수: 몫 소수 첫째 자리에 0';
+        case 'NATURAL_NATURAL': return '6. 자연수/자연수';
+        case 'NATURAL_NATURAL_RANDOM': return '7. 자연수/자연수 (랜덤)';
+        default: return '소수 배틀';
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-black">
       {/* Top Bar */}
@@ -1315,12 +1563,16 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
           <button onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors touch-none select-none" title="전체 화면">
             <Maximize size={20} />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-gray-300">
-            대분수 ÷ 자연수 
-            {options.isItemMode && <span className="text-yellow-400 ml-2">✨ 아이템전 ✨</span>}
-            {options.requireIrreducible && <span className="text-blue-400 ml-2">🔹 기약분수</span>}
-            {options.requireMixed && <span className="text-orange-400 ml-2">🔸 대분수</span>}
-          </h1>
+          <div className="flex flex-col">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-300">
+              {getMissionName()}
+            </h1>
+            <div className="flex items-center text-sm sm:text-base mt-1">
+              {options.isItemMode && <span className="text-yellow-400 mr-2">✨ 아이템전 ✨</span>}
+              {options.world === 'FRACTION' && options.requireIrreducible && <span className="text-blue-400 mr-2">🔹 기약분수</span>}
+              {options.world === 'FRACTION' && options.requireMixed && <span className="text-orange-400 mr-2">🔸 대분수</span>}
+            </div>
+          </div>
         </div>
 
         <div className={`timer-text text-4xl sm:text-6xl lg:text-7xl font-mono tracking-wider ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>
