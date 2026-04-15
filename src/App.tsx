@@ -2362,7 +2362,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-screen overflow-hidden select-none font-sans bg-black">
+    <div className="w-full h-screen overflow-hidden select-none font-sans bg-black print:h-auto print:overflow-visible print:bg-white print:block">
       {gameState === 'MENU' && <MenuScreen onStart={startGame} onWorksheet={startWorksheet} />}
       {gameState === 'WORKSHEET' && <WorksheetScreen initialOptions={options} onBack={() => setGameState('MENU')} />}
       {gameState === 'COUNTDOWN' && (
