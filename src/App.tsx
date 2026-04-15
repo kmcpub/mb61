@@ -1119,7 +1119,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?code=' + seedCode)}`;
 
   return (
-    <div className="flex flex-col h-full bg-white text-black overflow-y-auto print:bg-white print:text-black">
+    <div className="flex flex-col h-full bg-white text-black overflow-y-auto print:bg-white print:text-black print:overflow-visible print:h-auto print:block">
       {/* Controls (Hidden in Print) */}
       <div className="print:hidden p-4 bg-gray-100 border-b flex flex-wrap gap-4 items-center justify-between">
         <div className="flex items-center gap-4">
@@ -1171,18 +1171,21 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
 
         <h2 className="text-xl font-bold mb-6">다음을 계산하세요.</h2>
 
-        <div className="grid grid-cols-4 gap-x-6 gap-y-12">
-          {problems.map((p, i) => (
-            <div key={i} className="flex items-start break-inside-avoid">
-              <div className="flex-shrink-0 mr-2 mt-1">
-                <div className="w-5 h-5 rounded-full border border-black flex items-center justify-center text-xs font-bold">
-                  {i + 1}
-                </div>
-              </div>
-              
-              <div className="flex flex-col w-full">
-                {p.world === 'FRACTION' && (
-                  <div className="flex items-center gap-2 mb-2 text-base font-sans font-medium">
+        {Array.from({ length: Math.ceil(problems.length / 20) }).map((_, pageIdx) => (
+          <div key={pageIdx} className="grid grid-cols-4 gap-x-6 gap-y-12 print:break-after-page mb-12">
+            {problems.slice(pageIdx * 20, (pageIdx + 1) * 20).map((p, idxOnPage) => {
+              const i = pageIdx * 20 + idxOnPage;
+              return (
+                <div key={i} className="flex items-start break-inside-avoid">
+                  <div className="flex-shrink-0 mr-2 mt-1">
+                    <div className="w-5 h-5 rounded-full border border-black flex items-center justify-center text-xs font-bold">
+                      {i + 1}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col w-full">
+                    {p.world === 'FRACTION' && (
+                      <div className="flex items-center gap-2 mb-2 text-base font-sans font-medium">
                     <div className="flex items-center">
                       {p.A > 0 && <span>{p.A}</span>}
                       <div className="flex flex-col items-center ml-1 text-sm">
@@ -1253,7 +1256,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                         // Divisor
                         p.divisor.toString().split('').forEach((char, i) => {
                           elements.push(
-                            <div key={`div_${i}`} className="flex items-center justify-center text-base font-sans font-medium" style={{ gridColumnStart: i + 1, gridRowStart: 2 }}>
+                            <div key={`div_${i}`} className="flex items-center justify-center text-base font-sans font-medium border-t border-transparent" style={{ gridColumnStart: i + 1, gridRowStart: 2 }}>
                               {char}
                             </div>
                           );
@@ -1273,8 +1276,8 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                           elements.push(
                             <div key={`d_${i}`} className="flex items-center justify-center text-base font-sans font-medium border-t border-black relative" style={{ gridColumnStart: getCol(currentIdx), gridRowStart: 2 }}>
                               {currentIdx === maxIdx && (
-                                <svg className="absolute right-full top-[-1px] h-[calc(100%+1px)] w-2.5" viewBox="0 0 10 24" preserveAspectRatio="none">
-                                  <path d="M 10 0.5 L 0 0.5 C 6 0.5 8 4 8 12 C 8 20 6 23.5 0 23.5" fill="none" stroke="black" strokeWidth="1" />
+                                <svg className="absolute left-0 top-[-1px] h-[calc(100%+1px)] w-1.5 overflow-visible" viewBox="0 0 6 24" preserveAspectRatio="none">
+                                  <path d="M 0 0.5 C 3 0.5 5 5 5 12 C 5 19 3 23.5 0 23.5" fill="none" stroke="black" strokeWidth="1" />
                                 </svg>
                               )}
                               {char}
@@ -1327,8 +1330,10 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                 )}
               </div>
             </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
