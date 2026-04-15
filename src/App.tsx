@@ -1147,7 +1147,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
       </div>
 
       {/* Worksheet Content */}
-      <div className="p-8 max-w-5xl mx-auto w-full print:[zoom:0.85] print:p-0">
+      <div className="p-8 max-w-5xl mx-auto w-full print:[zoom:0.7] print:p-0">
         <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-4">
           <div>
             <h1 className="text-3xl font-black mb-2">
@@ -1171,12 +1171,9 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
 
         <h2 className="text-xl font-bold mb-6">다음을 계산하세요.</h2>
 
-        {Array.from({ length: Math.ceil(problems.length / 20) }).map((_, pageIdx) => (
-          <div key={pageIdx} className={`grid grid-cols-4 gap-x-6 gap-y-12 print:gap-y-8 ${pageIdx < Math.ceil(problems.length / 20) - 1 ? 'print:break-after-page mb-12' : 'mb-4 print:mb-0'}`}>
-            {problems.slice(pageIdx * 20, (pageIdx + 1) * 20).map((p, idxOnPage) => {
-              const i = pageIdx * 20 + idxOnPage;
-              return (
-                <div key={i} className="flex items-start break-inside-avoid">
+        <div className="grid grid-cols-4 gap-x-6 gap-y-12 print:gap-y-8">
+          {problems.map((p, i) => (
+            <div key={i} className="flex items-start break-inside-avoid">
                   <div className="flex-shrink-0 mr-2 mt-1">
                     <div className="w-5 h-5 rounded-full border border-black flex items-center justify-center text-xs font-bold">
                       {i + 1}
@@ -1330,10 +1327,8 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                 )}
               </div>
             </div>
-              );
-            })}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1486,14 +1481,15 @@ const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[
   const TEAM_NAMES = ['제외', 'A팀', 'B팀', 'C팀', 'D팀'];
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-full bg-gray-900 p-4 pt-16 overflow-y-auto text-white relative">
-      <button 
-        onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} 
-        className="absolute top-4 right-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors shadow-md touch-none select-none"
-        title="전체 화면"
-      >
-        <Maximize size={24} />
-      </button>
+    <div className="flex flex-col items-center min-h-full bg-gray-900 p-4 overflow-y-auto text-white relative">
+      <div className="my-auto flex flex-col items-center w-full py-16">
+        <button 
+          onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} 
+          className="absolute top-4 right-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors shadow-md touch-none select-none"
+          title="전체 화면"
+        >
+          <Maximize size={24} />
+        </button>
 
       <input
         value={subtitle}
@@ -1737,7 +1733,8 @@ const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[
         <p className="mt-2">입력창의 <span className="font-bold text-white bg-gray-700 px-2 py-1 rounded">칸</span>을 직접 터치하거나 <span className="font-bold text-white bg-gray-700 px-2 py-1 rounded">대</span>, <span className="font-bold text-white bg-gray-700 px-2 py-1 rounded">분</span> 버튼으로 이동하세요.</p>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }: { activePlayers: ActivePlayer[]; duration: number; options: GameOptions; mode: GameMode; onEnd: (scores: Record<number, number>) => void, isPaused?: boolean }) => {
