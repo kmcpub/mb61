@@ -1147,7 +1147,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
       </div>
 
       {/* Worksheet Content */}
-      <div className="p-8 max-w-5xl mx-auto w-full">
+      <div className="p-8 max-w-5xl mx-auto w-full print:[zoom:0.85] print:p-0">
         <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-4">
           <div>
             <h1 className="text-3xl font-black mb-2">
@@ -1172,7 +1172,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
         <h2 className="text-xl font-bold mb-6">다음을 계산하세요.</h2>
 
         {Array.from({ length: Math.ceil(problems.length / 20) }).map((_, pageIdx) => (
-          <div key={pageIdx} className="grid grid-cols-4 gap-x-6 gap-y-12 print:break-after-page mb-12">
+          <div key={pageIdx} className={`grid grid-cols-4 gap-x-6 gap-y-12 print:gap-y-8 ${pageIdx < Math.ceil(problems.length / 20) - 1 ? 'print:break-after-page mb-12' : 'mb-4 print:mb-0'}`}>
             {problems.slice(pageIdx * 20, (pageIdx + 1) * 20).map((p, idxOnPage) => {
               const i = pageIdx * 20 + idxOnPage;
               return (
@@ -1486,7 +1486,7 @@ const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[
   const TEAM_NAMES = ['제외', 'A팀', 'B팀', 'C팀', 'D팀'];
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-gray-900 p-4 overflow-y-auto text-white relative">
+    <div className="flex flex-col items-center justify-start min-h-full bg-gray-900 p-4 pt-16 overflow-y-auto text-white relative">
       <button 
         onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} 
         className="absolute top-4 right-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors shadow-md touch-none select-none"
