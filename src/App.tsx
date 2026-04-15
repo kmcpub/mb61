@@ -120,14 +120,14 @@ const playSound = (type: 'click' | 'correct' | 'wrong' | 'tick' | 'tada' | 'coun
 export const DIFFICULTIES = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND', 'MASTER', 'CHALLENGER'] as const;
 export type Difficulty = typeof DIFFICULTIES[number];
 
-const DIFFICULTY_LABELS: Record<Difficulty, { label: string, emoji: string, desc: string }> = {
-  BRONZE: { label: '브론즈', emoji: '🟤', desc: '모두 1자리' },
-  SILVER: { label: '실버', emoji: '⚪', desc: '2자리 1개' },
-  GOLD: { label: '골드', emoji: '🟡', desc: '2자리 2개' },
-  PLATINUM: { label: '플래티넘', emoji: '🔵', desc: '2자리 3개' },
-  DIAMOND: { label: '다이아', emoji: '💎', desc: '모두 2자리' },
-  MASTER: { label: '마스터', emoji: '🏅', desc: '3자리 1개' },
-  CHALLENGER: { label: '챌린저', emoji: '🎖️', desc: '3자리 2개' },
+const DIFFICULTY_LABELS: Record<Difficulty, { label: string, emoji: string, desc: string, decimalDesc: string }> = {
+  BRONZE: { label: '브론즈', emoji: '🟤', desc: '모두 1자리', decimalDesc: '몫 2자리, 나누는 수 1자리' },
+  SILVER: { label: '실버', emoji: '⚪', desc: '2자리 1개', decimalDesc: '몫 3자리, 나누는 수 1자리' },
+  GOLD: { label: '골드', emoji: '🟡', desc: '2자리 2개', decimalDesc: '몫 2자리, 나누는 수 2자리' },
+  PLATINUM: { label: '플래티넘', emoji: '🔵', desc: '2자리 3개', decimalDesc: '몫 3자리, 나누는 수 2자리' },
+  DIAMOND: { label: '다이아', emoji: '💎', desc: '모두 2자리', decimalDesc: '몫 4자리, 나누는 수 2자리' },
+  MASTER: { label: '마스터', emoji: '🏅', desc: '3자리 1개', decimalDesc: '몫 3자리, 나누는 수 3자리' },
+  CHALLENGER: { label: '챌린저', emoji: '🎖️', desc: '3자리 2개', decimalDesc: '몫 4자리, 나누는 수 3자리' },
 };
 
 type WorldType = 'FRACTION' | 'DECIMAL';
@@ -140,7 +140,7 @@ type DecimalMission =
   | 'DECIMAL_NATURAL_BRING_DOWN_ZERO'
   | 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT'
   | 'NATURAL_NATURAL'
-  | 'NATURAL_NATURAL_RANDOM';
+  | 'DECIMAL_ALL_RANDOM';
 
 type Problem = {
   world: WorldType;
@@ -267,16 +267,16 @@ function generateProblem(options: GameOptions): Problem {
 }
 
 function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty): Problem {
-  let qDigits = 2;
-  let dDigits = 1;
-  switch (difficulty) {
-    case 'BRONZE': qDigits = 2; dDigits = 1; break;
-    case 'SILVER': qDigits = 3; dDigits = 1; break;
-    case 'GOLD': qDigits = 2; dDigits = 2; break;
-    case 'PLATINUM': qDigits = 3; dDigits = 2; break;
-    case 'DIAMOND': qDigits = 4; dDigits = 2; break;
-    case 'MASTER': qDigits = 3; dDigits = 3; break;
-    case 'CHALLENGER': qDigits = 4; dDigits = 3; break;
+  if (mission === 'DECIMAL_ALL_RANDOM') {
+    const missions: DecimalMission[] = [
+      'DECIMAL_NATURAL_NO_CARRY',
+      'DECIMAL_NATURAL_CARRY',
+      'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1',
+      'DECIMAL_NATURAL_BRING_DOWN_ZERO',
+      'DECIMAL_NATURAL_ZERO_IN_QUOTIENT',
+      'NATURAL_NATURAL'
+    ];
+    mission = missions[Math.floor(Math.random() * missions.length)];
   }
 
   const genInt = (digits: number) => {
@@ -297,60 +297,124 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty)
   let divisor = 0;
   let quotient = 0;
 
-  if (mission === 'DECIMAL_NATURAL_NO_CARRY') {
-    divisor = genInt(1);
-    let qIntStr = '';
-    for (let i = 0; i < qDigits; i++) {
-      const maxDigit = Math.floor(9 / divisor);
-      const digit = Math.floor(Math.random() * maxDigit) + 1;
-      qIntStr += digit;
+  let isValid = false;
+  while (!isValid) {
+    if (mission === 'DECIMAL_NATURAL_NO_CARRY') {
+      divisor = [2, 3, 4][Math.floor(Math.random() * 3)];
+      let intDigits = 1, decDigits = 1;
+      switch (difficulty) {
+        case 'BRONZE': intDigits = 1; decDigits = 1; break;
+        case 'SILVER': intDigits = 2; decDigits = 1; break;
+        case 'GOLD': intDigits = 1; decDigits = 2; break;
+        case 'PLATINUM': intDigits = 2; decDigits = 2; break;
+        case 'DIAMOND': intDigits = 1; decDigits = 3; break;
+        case 'MASTER': intDigits = 2; decDigits = 3; break;
+        case 'CHALLENGER': intDigits = 3; decDigits = 3; break;
+      }
+      let qIntPart = genInt(intDigits);
+      let qDecStr = '';
+      for (let i = 0; i < decDigits; i++) {
+        const maxDigit = Math.floor(9 / divisor);
+        const digit = Math.floor(Math.random() * maxDigit) + 1;
+        qDecStr += digit;
+      }
+      quotient = parseFloat(`${qIntPart}.${qDecStr}`);
+      dividend = parseFloat((quotient * divisor).toFixed(10));
+    } else if (mission === 'DECIMAL_NATURAL_CARRY') {
+      let intDigits = 1, decDigits = 1, dDigits = 1;
+      switch (difficulty) {
+        case 'BRONZE': intDigits = 1; decDigits = 1; dDigits = 1; break;
+        case 'SILVER': intDigits = 2; decDigits = 1; dDigits = 1; break;
+        case 'GOLD': intDigits = 1; decDigits = 2; dDigits = 1; break;
+        case 'PLATINUM': intDigits = 2; decDigits = 2; dDigits = 1; break;
+        case 'DIAMOND': intDigits = 1; decDigits = 3; dDigits = 1; break;
+        case 'MASTER': intDigits = 2; decDigits = 3; dDigits = 1; break;
+        case 'CHALLENGER': intDigits = 2; decDigits = 2; dDigits = 2; break;
+      }
+      divisor = genInt(dDigits);
+      let qIntPart = genInt(intDigits);
+      let qDecPart = genInt(decDigits);
+      quotient = parseFloat(`${qIntPart}.${qDecPart}`);
+      dividend = parseFloat((quotient * divisor).toFixed(10));
+    } else if (mission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1') {
+      let decDigits = 1, dDigits = 1;
+      switch (difficulty) {
+        case 'BRONZE': decDigits = 1; dDigits = 1; break;
+        case 'SILVER': decDigits = 2; dDigits = 1; break;
+        case 'GOLD': decDigits = 3; dDigits = 1; break;
+        case 'PLATINUM': decDigits = 1; dDigits = 2; break;
+        case 'DIAMOND': decDigits = 2; dDigits = 2; break;
+        case 'MASTER': decDigits = 3; dDigits = 2; break;
+        case 'CHALLENGER': decDigits = 4; dDigits = 2; break;
+      }
+      divisor = genInt(dDigits);
+      let qDecPart = genInt(decDigits);
+      quotient = parseFloat(`0.${qDecPart}`);
+      dividend = parseFloat((quotient * divisor).toFixed(10));
+    } else if (mission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO') {
+      let divDecDigits = 1, dDigits = 1;
+      switch (difficulty) {
+        case 'BRONZE': divDecDigits = 1; dDigits = 1; break;
+        case 'SILVER': divDecDigits = 2; dDigits = 1; break;
+        case 'GOLD': divDecDigits = 1; dDigits = 2; break;
+        case 'PLATINUM': divDecDigits = 2; dDigits = 2; break;
+        case 'DIAMOND': divDecDigits = 3; dDigits = 2; break;
+        case 'MASTER': divDecDigits = 1; dDigits = 3; break;
+        case 'CHALLENGER': divDecDigits = 2; dDigits = 3; break;
+      }
+      const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
+      divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
+      let qIntPart = genInt(1);
+      let qDecStr = '';
+      if (divDecDigits === 1) {
+         qDecStr = `${Math.floor(Math.random() * 9) + 1}5`;
+      } else if (divDecDigits === 2) {
+         qDecStr = `${Math.floor(Math.random() * 9) + 1}${Math.floor(Math.random() * 9) + 1}5`;
+      } else {
+         qDecStr = `${Math.floor(Math.random() * 9) + 1}${Math.floor(Math.random() * 9) + 1}${Math.floor(Math.random() * 9) + 1}5`;
+      }
+      quotient = parseFloat(`${qIntPart}.${qDecStr}`);
+      dividend = parseFloat((quotient * divisor).toFixed(10));
+    } else if (mission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT') {
+      let intDigits = 1, decDigits = 2, dDigits = 1;
+      switch (difficulty) {
+        case 'BRONZE': intDigits = 1; decDigits = 2; dDigits = 1; break;
+        case 'SILVER': intDigits = 2; decDigits = 2; dDigits = 1; break;
+        case 'GOLD': intDigits = 1; decDigits = 3; dDigits = 1; break;
+        case 'PLATINUM': intDigits = 1; decDigits = 2; dDigits = 2; break;
+        case 'DIAMOND': intDigits = 2; decDigits = 2; dDigits = 2; break;
+        case 'MASTER': intDigits = 1; decDigits = 3; dDigits = 2; break;
+        case 'CHALLENGER': intDigits = 2; decDigits = 3; dDigits = 2; break;
+      }
+      divisor = genInt(dDigits);
+      let qIntPart = genInt(intDigits);
+      let qDecStr = '0' + genInt(decDigits - 1).toString();
+      quotient = parseFloat(`${qIntPart}.${qDecStr}`);
+      dividend = parseFloat((quotient * divisor).toFixed(10));
+    } else if (mission === 'NATURAL_NATURAL') {
+      let divDigits = 1, dDigits = 1;
+      switch (difficulty) {
+        case 'BRONZE': divDigits = 1; dDigits = 1; break;
+        case 'SILVER': divDigits = 2; dDigits = 1; break;
+        case 'GOLD': divDigits = 1; dDigits = 2; break;
+        case 'PLATINUM': divDigits = 2; dDigits = 2; break;
+        case 'DIAMOND': divDigits = 3; dDigits = 2; break;
+        case 'MASTER': divDigits = 2; dDigits = 3; break;
+        case 'CHALLENGER': divDigits = 3; dDigits = 3; break;
+      }
+      const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
+      divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
+      dividend = genInt(divDigits);
+      if (dividend % divisor === 0) dividend += 1;
+      quotient = parseFloat((dividend / divisor).toFixed(10));
     }
-    const qInt = parseInt(qIntStr, 10);
-    const decimalPos = Math.floor(Math.random() * (qDigits - 1)) + 1;
-    quotient = qInt / Math.pow(10, qDigits - decimalPos);
-    dividend = parseFloat((quotient * divisor).toFixed(10));
-  } else if (mission === 'DECIMAL_NATURAL_CARRY') {
-    divisor = genInt(dDigits);
-    let qInt = genInt(qDigits);
-    const decimalPos = Math.floor(Math.random() * (qDigits - 1)) + 1;
-    quotient = qInt / Math.pow(10, qDigits - decimalPos);
-    dividend = parseFloat((quotient * divisor).toFixed(10));
-  } else if (mission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1') {
-    divisor = genInt(dDigits);
-    let qInt = genInt(qDigits);
-    quotient = qInt / Math.pow(10, qDigits);
-    dividend = parseFloat((quotient * divisor).toFixed(10));
-  } else if (mission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO') {
-    const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
-    divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
-    
-    let qIntStr = genInt(qDigits - 1).toString();
-    if (divisor % 2 === 0) {
-      qIntStr += '5';
+
+    if (mission === 'NATURAL_NATURAL') {
+      isValid = true;
     } else {
-      qIntStr += '2';
+      isValid = dividend % 1 !== 0;
+      if (isValid) isValid = quotient % 1 !== 0;
     }
-    const qInt = parseInt(qIntStr, 10);
-    const decimalPos = Math.floor(Math.random() * (qDigits - 1)) + 1;
-    quotient = qInt / Math.pow(10, qDigits - decimalPos);
-    dividend = parseFloat((quotient * divisor).toFixed(10));
-  } else if (mission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT') {
-    divisor = genInt(dDigits);
-    let qIntStr = genInt(1).toString() + '0';
-    if (qDigits > 2) {
-      qIntStr += genInt(qDigits - 2).toString();
-    } else {
-      qIntStr += genInt(1).toString();
-    }
-    const qInt = parseInt(qIntStr, 10);
-    quotient = qInt / Math.pow(10, qIntStr.length - 1);
-    dividend = parseFloat((quotient * divisor).toFixed(10));
-  } else if (mission === 'NATURAL_NATURAL' || mission === 'NATURAL_NATURAL_RANDOM') {
-    const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
-    divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
-    dividend = genInt(qDigits);
-    if (dividend % divisor === 0) dividend += 1;
-    quotient = parseFloat((dividend / divisor).toFixed(10));
   }
 
   return { world: 'DECIMAL', dividend, divisor, quotient };
@@ -882,6 +946,85 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
 };
 
 const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: number, options: GameOptions, mode: GameMode) => void }) => {
+  const getDifficultyDescription = (world: WorldType, fractionMission: FractionMission, decimalMission: DecimalMission, difficulty: Difficulty) => {
+    if (world === 'FRACTION') {
+      return DIFFICULTY_LABELS[difficulty].desc;
+    }
+    
+    const m = decimalMission === 'DECIMAL_ALL_RANDOM' ? '전체 랜덤' : decimalMission;
+    if (m === '전체 랜덤') return '모든 미션 중 랜덤 출제';
+    
+    switch (decimalMission) {
+      case 'DECIMAL_NATURAL_NO_CARRY':
+        switch (difficulty) {
+          case 'BRONZE': return '몫: 자연수 1자리.소수 1자리, 나누는 수: 1자리';
+          case 'SILVER': return '몫: 자연수 2자리.소수 1자리, 나누는 수: 1자리';
+          case 'GOLD': return '몫: 자연수 1자리.소수 2자리, 나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 자연수 2자리.소수 2자리, 나누는 수: 1자리';
+          case 'DIAMOND': return '몫: 자연수 1자리.소수 3자리, 나누는 수: 1자리';
+          case 'MASTER': return '몫: 자연수 2자리.소수 3자리, 나누는 수: 1자리';
+          case 'CHALLENGER': return '몫: 자연수 3자리.소수 3자리, 나누는 수: 1자리';
+        }
+        break;
+      case 'DECIMAL_NATURAL_CARRY':
+        switch (difficulty) {
+          case 'BRONZE': return '몫: 자연수 1자리.소수 1자리, 나누는 수: 1자리';
+          case 'SILVER': return '몫: 자연수 2자리.소수 1자리, 나누는 수: 1자리';
+          case 'GOLD': return '몫: 자연수 1자리.소수 2자리, 나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 자연수 2자리.소수 2자리, 나누는 수: 1자리';
+          case 'DIAMOND': return '몫: 자연수 1자리.소수 3자리, 나누는 수: 1자리';
+          case 'MASTER': return '몫: 자연수 2자리.소수 3자리, 나누는 수: 1자리';
+          case 'CHALLENGER': return '몫: 자연수 2자리.소수 2자리, 나누는 수: 2자리';
+        }
+        break;
+      case 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1':
+        switch (difficulty) {
+          case 'BRONZE': return '몫: 0.소수 1자리, 나누는 수: 1자리';
+          case 'SILVER': return '몫: 0.소수 2자리, 나누는 수: 1자리';
+          case 'GOLD': return '몫: 0.소수 3자리, 나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 0.소수 1자리, 나누는 수: 2자리';
+          case 'DIAMOND': return '몫: 0.소수 2자리, 나누는 수: 2자리';
+          case 'MASTER': return '몫: 0.소수 3자리, 나누는 수: 2자리';
+          case 'CHALLENGER': return '몫: 0.소수 4자리, 나누는 수: 2자리';
+        }
+        break;
+      case 'DECIMAL_NATURAL_BRING_DOWN_ZERO':
+        switch (difficulty) {
+          case 'BRONZE': return '나누어지는 수: 소수 1자리, 나누는 수: 1자리';
+          case 'SILVER': return '나누어지는 수: 소수 2자리, 나누는 수: 1자리';
+          case 'GOLD': return '나누어지는 수: 소수 1자리, 나누는 수: 2자리';
+          case 'PLATINUM': return '나누어지는 수: 소수 2자리, 나누는 수: 2자리';
+          case 'DIAMOND': return '나누어지는 수: 소수 3자리, 나누는 수: 2자리';
+          case 'MASTER': return '나누어지는 수: 소수 1자리, 나누는 수: 3자리';
+          case 'CHALLENGER': return '나누어지는 수: 소수 2자리, 나누는 수: 3자리';
+        }
+        break;
+      case 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT':
+        switch (difficulty) {
+          case 'BRONZE': return '몫: 자연수 1자리.0X, 나누는 수: 1자리';
+          case 'SILVER': return '몫: 자연수 2자리.0X, 나누는 수: 1자리';
+          case 'GOLD': return '몫: 자연수 1자리.0XX, 나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 자연수 1자리.0X, 나누는 수: 2자리';
+          case 'DIAMOND': return '몫: 자연수 2자리.0X, 나누는 수: 2자리';
+          case 'MASTER': return '몫: 자연수 1자리.0XX, 나누는 수: 2자리';
+          case 'CHALLENGER': return '몫: 자연수 2자리.0XX, 나누는 수: 2자리';
+        }
+        break;
+      case 'NATURAL_NATURAL':
+        switch (difficulty) {
+          case 'BRONZE': return '나누어지는 수: 1자리, 나누는 수: 1자리';
+          case 'SILVER': return '나누어지는 수: 2자리, 나누는 수: 1자리';
+          case 'GOLD': return '나누어지는 수: 1자리, 나누는 수: 2자리';
+          case 'PLATINUM': return '나누어지는 수: 2자리, 나누는 수: 2자리';
+          case 'DIAMOND': return '나누어지는 수: 3자리, 나누는 수: 2자리';
+          case 'MASTER': return '나누어지는 수: 2자리, 나누는 수: 3자리';
+          case 'CHALLENGER': return '나누어지는 수: 3자리, 나누는 수: 3자리';
+        }
+        break;
+    }
+    return '';
+  };
+
   const [world, setWorld] = useState<WorldType>(() => (localStorage.getItem('world') as WorldType) || 'FRACTION');
   const [fractionMission, setFractionMission] = useState<FractionMission>(() => (localStorage.getItem('fractionMission') as FractionMission) || 'MIXED_NATURAL');
   const [decimalMission, setDecimalMission] = useState<DecimalMission>(() => (localStorage.getItem('decimalMission') as DecimalMission) || 'DECIMAL_NATURAL_NO_CARRY');
@@ -1001,13 +1144,13 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
               </button>
             ) : (
               <>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_NO_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_NO_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>1. 소수/자연수: 몫&gt;1, 각 자리 나누어떨어짐 (예: 6.2/2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>2. 소수/자연수: 몫&gt;1, 각 자리 나누어떨어지지 않음 (예: 4.23/3)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>3. 소수/자연수: 몫&lt;1 (예: 1.24/2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_BRING_DOWN_ZERO'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>4. 소수/자연수: 소수점 아래 0 내려 계산 (예: 2.6/4)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_ZERO_IN_QUOTIENT'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>5. 소수/자연수: 몫 소수 첫째 자리에 0 (예: 2.14/2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('NATURAL_NATURAL'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'NATURAL_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>6. 자연수/자연수 (예: 3/2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('NATURAL_NATURAL_RANDOM'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'NATURAL_NATURAL_RANDOM' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>7. 자연수/자연수 (랜덤)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_NO_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_NO_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>1. 소수÷자연수: 몫&gt;1, 각 자리 나누어떨어짐 (예: 6.2÷2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>2. 소수÷자연수: 몫&gt;1, 각 자리 나누어떨어지지 않음 (예: 4.23÷3)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>3. 소수÷자연수: 몫&lt;1 (예: 1.24÷2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_BRING_DOWN_ZERO'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>4. 소수÷자연수: 소수점 아래 0 내려 계산 (예: 2.6÷4)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_ZERO_IN_QUOTIENT'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>5. 소수÷자연수: 몫 소수 첫째 자리에 0 (예: 2.14÷2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('NATURAL_NATURAL'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'NATURAL_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>6. 자연수÷자연수 (예: 3÷2)</button>
+                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_ALL_RANDOM'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_ALL_RANDOM' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>7. 전체 랜덤 (소수 및 자연수)</button>
               </>
             )}
           </div>
@@ -1136,7 +1279,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
                 onChange={(e) => { playSound('click'); setIsItemMode(e.target.checked); }}
                 className="w-6 h-6 accent-yellow-500"
               />
-              <span className="text-lg font-bold text-yellow-400">✨ 아이템전 모드 ✨</span>
+              <span className="text-lg font-bold text-yellow-400">✨ 아이템전 ✨</span>
             </label>
             {world === 'FRACTION' && (
               <div className="bg-gray-900 p-3 rounded-xl border border-gray-700">
@@ -1166,7 +1309,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
                   }`}
                 >
                   <span className="text-xs sm:text-base lg:text-lg mb-0.5 sm:mb-1 whitespace-nowrap">{info.emoji} {info.label}</span>
-                  <span className="text-[9px] sm:text-xs opacity-80 font-normal text-center leading-tight break-keep">{info.desc}</span>
+                  <span className="text-[9px] sm:text-xs opacity-80 font-normal text-center leading-tight break-keep">{getDifficultyDescription(world, fractionMission, decimalMission, d)}</span>
                 </button>
               );
             })}
@@ -1543,13 +1686,13 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
       return '대분수 ÷ 자연수';
     } else {
       switch (options.decimalMission) {
-        case 'DECIMAL_NATURAL_NO_CARRY': return '1. 소수/자연수: 몫>1, 각 자리 나누어떨어짐';
-        case 'DECIMAL_NATURAL_CARRY': return '2. 소수/자연수: 몫>1, 각 자리 나누어떨어지지 않음';
-        case 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1': return '3. 소수/자연수: 몫<1';
-        case 'DECIMAL_NATURAL_BRING_DOWN_ZERO': return '4. 소수/자연수: 소수점 아래 0 내려 계산';
-        case 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT': return '5. 소수/자연수: 몫 소수 첫째 자리에 0';
-        case 'NATURAL_NATURAL': return '6. 자연수/자연수';
-        case 'NATURAL_NATURAL_RANDOM': return '7. 자연수/자연수 (랜덤)';
+        case 'DECIMAL_NATURAL_NO_CARRY': return '1. 소수÷자연수: 몫>1, 각 자리 나누어떨어짐';
+        case 'DECIMAL_NATURAL_CARRY': return '2. 소수÷자연수: 몫>1, 각 자리 나누어떨어지지 않음';
+        case 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1': return '3. 소수÷자연수: 몫<1';
+        case 'DECIMAL_NATURAL_BRING_DOWN_ZERO': return '4. 소수÷자연수: 소수점 아래 0 내려 계산';
+        case 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT': return '5. 소수÷자연수: 몫 소수 첫째 자리에 0';
+        case 'NATURAL_NATURAL': return '6. 자연수÷자연수';
+        case 'DECIMAL_ALL_RANDOM': return '7. 전체 랜덤 (소수 및 자연수)';
         default: return '소수 배틀';
       }
     }
@@ -1568,6 +1711,9 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
               {getMissionName()}
             </h1>
             <div className="flex items-center text-sm sm:text-base mt-1">
+              <span className="text-gray-300 mr-3 bg-gray-800 px-2 py-0.5 rounded-md border border-gray-700">
+                {DIFFICULTY_LABELS[options.difficulty].emoji} {DIFFICULTY_LABELS[options.difficulty].label}
+              </span>
               {options.isItemMode && <span className="text-yellow-400 mr-2">✨ 아이템전 ✨</span>}
               {options.world === 'FRACTION' && options.requireIrreducible && <span className="text-blue-400 mr-2">🔹 기약분수</span>}
               {options.world === 'FRACTION' && options.requireMixed && <span className="text-orange-400 mr-2">🔸 대분수</span>}
@@ -1761,6 +1907,14 @@ export default function App() {
   const [mode, setMode] = useState<GameMode>('INDIVIDUAL');
   const [options, setOptions] = useState<GameOptions>({ requireIrreducible: false, requireMixed: false, difficulty: 'BRONZE', digitRange: [10, 20], isItemMode: false });
   const [finalScores, setFinalScores] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (gameState === 'MENU') {
+      document.title = '수학 배틀';
+    } else {
+      document.title = options.world === 'FRACTION' ? '분수 배틀' : '소수 배틀';
+    }
+  }, [gameState, options.world]);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
