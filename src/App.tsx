@@ -206,9 +206,9 @@ type ActivePlayer = {
   team: number;
 };
 
-function generateProblem(options: GameOptions): Problem {
+function generateProblem(options: GameOptions, rng: () => number = Math.random): Problem {
   if (options.world === 'DECIMAL') {
-    return generateDecimalProblem(options.decimalMission, options.difficulty);
+    return generateDecimalProblem(options.decimalMission, options.difficulty, rng);
   }
 
   const { difficulty, digitRange } = options;
@@ -221,14 +221,14 @@ function generateProblem(options: GameOptions): Problem {
   else if (difficulty === 'CHALLENGER') digitCounts = [2, 2, 3, 3];
 
   for (let i = digitCounts.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [digitCounts[i], digitCounts[j]] = [digitCounts[j], digitCounts[i]];
   }
 
   const genNum = (digits: number) => {
-    if (digits === 1) return Math.floor(Math.random() * 8) + 2;
-    if (digits === 2) return Math.floor(Math.random() * (digitRange[1] - digitRange[0] + 1)) + digitRange[0];
-    return Math.floor(Math.random() * 900) + 100;
+    if (digits === 1) return Math.floor(rng() * 8) + 2;
+    if (digits === 2) return Math.floor(rng() * (digitRange[1] - digitRange[0] + 1)) + digitRange[0];
+    return Math.floor(rng() * 900) + 100;
   };
 
   let A = genNum(digitCounts[0]);
@@ -260,13 +260,13 @@ function generateProblem(options: GameOptions): Problem {
   const simplifiedDen = denominator / common;
 
   if (whole > 9999 || simplifiedNum > 9999 || simplifiedDen > 9999) {
-    return generateProblem(options);
+    return generateProblem(options, rng);
   }
 
   return { world: 'FRACTION', A, B, C, D };
 }
 
-function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty): Problem {
+function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty, rng: () => number = Math.random): Problem {
   if (mission === 'DECIMAL_ALL_RANDOM') {
     const missions: DecimalMission[] = [
       'DECIMAL_NATURAL_NO_CARRY',
@@ -276,14 +276,14 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty)
       'DECIMAL_NATURAL_ZERO_IN_QUOTIENT',
       'NATURAL_NATURAL'
     ];
-    mission = missions[Math.floor(Math.random() * missions.length)];
+    mission = missions[Math.floor(rng() * missions.length)];
   }
 
   const genInt = (digits: number) => {
-    if (digits === 1) return Math.floor(Math.random() * 8) + 2; // 2-9
+    if (digits === 1) return Math.floor(rng() * 8) + 2; // 2-9
     const min = Math.pow(10, digits - 1);
     const max = Math.pow(10, digits) - 1;
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(rng() * (max - min + 1)) + min;
   };
 
   const TERMINATING_DIVISORS: Record<number, number[]> = {
@@ -300,7 +300,7 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty)
   let isValid = false;
   while (!isValid) {
     if (mission === 'DECIMAL_NATURAL_NO_CARRY') {
-      divisor = [2, 3, 4][Math.floor(Math.random() * 3)];
+      divisor = [2, 3, 4][Math.floor(rng() * 3)];
       let intDigits = 1, decDigits = 1;
       switch (difficulty) {
         case 'BRONZE': intDigits = 1; decDigits = 1; break;
@@ -315,7 +315,7 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty)
       let qDecStr = '';
       for (let i = 0; i < decDigits; i++) {
         const maxDigit = Math.floor(9 / divisor);
-        const digit = Math.floor(Math.random() * maxDigit) + 1;
+        const digit = Math.floor(rng() * maxDigit) + 1;
         qDecStr += digit;
       }
       quotient = parseFloat(`${qIntPart}.${qDecStr}`);
@@ -363,15 +363,15 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty)
         case 'CHALLENGER': divDecDigits = 2; dDigits = 3; break;
       }
       const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
-      divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
+      divisor = validDivisors[Math.floor(rng() * validDivisors.length)];
       let qIntPart = genInt(1);
       let qDecStr = '';
       if (divDecDigits === 1) {
-         qDecStr = `${Math.floor(Math.random() * 9) + 1}5`;
+         qDecStr = `${Math.floor(rng() * 9) + 1}5`;
       } else if (divDecDigits === 2) {
-         qDecStr = `${Math.floor(Math.random() * 9) + 1}${Math.floor(Math.random() * 9) + 1}5`;
+         qDecStr = `${Math.floor(rng() * 9) + 1}${Math.floor(rng() * 9) + 1}5`;
       } else {
-         qDecStr = `${Math.floor(Math.random() * 9) + 1}${Math.floor(Math.random() * 9) + 1}${Math.floor(Math.random() * 9) + 1}5`;
+         qDecStr = `${Math.floor(rng() * 9) + 1}${Math.floor(rng() * 9) + 1}${Math.floor(rng() * 9) + 1}5`;
       }
       quotient = parseFloat(`${qIntPart}.${qDecStr}`);
       dividend = parseFloat((quotient * divisor).toFixed(10));
@@ -403,7 +403,7 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty)
         case 'CHALLENGER': divDigits = 3; dDigits = 3; break;
       }
       const validDivisors = TERMINATING_DIVISORS[dDigits] || TERMINATING_DIVISORS[1];
-      divisor = validDivisors[Math.floor(Math.random() * validDivisors.length)];
+      divisor = validDivisors[Math.floor(rng() * validDivisors.length)];
       dividend = genInt(divDigits);
       if (dividend % divisor === 0) dividend += 1;
       quotient = parseFloat((dividend / divisor).toFixed(10));
@@ -945,7 +945,396 @@ const PlayerBoard = ({ id, team, config, score, allScores, options, activeItems,
   );
 };
 
-const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: number, options: GameOptions, mode: GameMode) => void }) => {
+const DECIMAL_MISSIONS: { id: DecimalMission, num: number, title: string, ex: string }[] = [
+  { id: 'DECIMAL_NATURAL_NO_CARRY', num: 1, title: '소수÷자연수: 몫>1, 각 자리 나누어떨어짐', ex: '6.2÷2' },
+  { id: 'DECIMAL_NATURAL_CARRY', num: 2, title: '소수÷자연수: 몫>1, 각 자리 나누어떨어지지 않음', ex: '4.23÷3' },
+  { id: 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1', num: 3, title: '소수÷자연수: 몫<1', ex: '1.24÷2' },
+  { id: 'DECIMAL_NATURAL_BRING_DOWN_ZERO', num: 4, title: '소수÷자연수: 소수점 아래 0 내려 계산', ex: '2.6÷4' },
+  { id: 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT', num: 5, title: '소수÷자연수: 몫 소수 첫째 자리에 0', ex: '2.14÷2' },
+  { id: 'NATURAL_NATURAL', num: 6, title: '자연수÷자연수', ex: '3÷2' },
+  { id: 'DECIMAL_ALL_RANDOM', num: 7, title: '전체 랜덤 (소수 및 자연수)', ex: '' },
+];
+
+function mulberry32(a: number) {
+  return function() {
+    var t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+interface VisualRow {
+  type: 'sub' | 'rem';
+  valStr: string;
+  endIdx: number;
+}
+
+function getDivisionRows(dividend: number, divisor: number, quotient: number): VisualRow[] {
+  const divStr = dividend.toString();
+  const quoStr = quotient.toString();
+  
+  const divDotIdx = divStr.indexOf('.');
+  const divIntLen = divDotIdx === -1 ? divStr.length : divDotIdx;
+  const divDecLen = divDotIdx === -1 ? 0 : divStr.length - divDotIdx - 1;
+  const quoDotIdx = quoStr.indexOf('.');
+  const quoDecLen = quoDotIdx === -1 ? 0 : quoStr.length - quoDotIdx - 1;
+  
+  const maxIdx = divIntLen - 1;
+  const minIdx = -Math.max(divDecLen, quoDecLen);
+  
+  let currentVal = 0;
+  let rows: VisualRow[] = [];
+  let hasStarted = false;
+  
+  for (let idx = maxIdx; idx >= minIdx; idx--) {
+    let digit = 0;
+    if (idx <= maxIdx && idx >= -divDecLen) {
+      let strIdx = maxIdx - idx;
+      if (idx < 0) strIdx += 1;
+      digit = parseInt(divStr[strIdx] || '0', 10);
+    }
+    
+    currentVal = currentVal * 10 + digit;
+    
+    if (hasStarted) {
+      rows.push({ type: 'rem', valStr: currentVal.toString(), endIdx: idx });
+    }
+    
+    let qDigit = Math.floor(currentVal / divisor);
+    let subVal = qDigit * divisor;
+    
+    if (qDigit > 0 || hasStarted) {
+      if (!hasStarted && qDigit === 0) {
+        // Skip leading zero
+      } else {
+        hasStarted = true;
+        rows.push({ type: 'sub', valStr: subVal.toString(), endIdx: idx });
+        currentVal = currentVal - subVal;
+        
+        if (idx === minIdx) {
+          rows.push({ type: 'rem', valStr: currentVal.toString(), endIdx: idx });
+        }
+      }
+    }
+  }
+  return rows;
+}
+
+const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptions, onBack: () => void }) => {
+  const [problemCount, setProblemCount] = useState(20);
+  const [showAnswers, setShowAnswers] = useState(false);
+  const [showQR, setShowQR] = useState(true);
+  const [seedCode, setSeedCode] = useState('');
+  const [inputCode, setInputCode] = useState('');
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [options, setOptions] = useState<GameOptions>(initialOptions);
+  
+  const generateSeedCode = (opts: GameOptions) => {
+    const w = opts.world === 'FRACTION' ? 1 : 2;
+    let m = 1;
+    if (opts.world === 'DECIMAL') {
+      const missionObj = DECIMAL_MISSIONS.find(x => x.id === opts.decimalMission);
+      m = missionObj ? missionObj.num : 1;
+    }
+    const d = DIFFICULTIES.indexOf(opts.difficulty);
+    const s = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `${w}${m}${d}${s}`;
+  };
+
+  const parseSeedCode = (code: string) => {
+    if (code.length !== 7) return null;
+    const w = code[0] === '1' ? 'FRACTION' : 'DECIMAL';
+    const m = parseInt(code[1], 10);
+    const d = parseInt(code[2], 10);
+    const s = parseInt(code.substring(3), 10);
+    if (isNaN(m) || isNaN(d) || isNaN(s)) return null;
+    
+    let decimalMission: DecimalMission = 'DECIMAL_NATURAL_NO_CARRY';
+    if (w === 'DECIMAL') {
+      const missionObj = DECIMAL_MISSIONS.find(x => x.num === m);
+      if (missionObj) decimalMission = missionObj.id;
+    }
+    
+    const difficulty = DIFFICULTIES[d] || 'BRONZE';
+    
+    return {
+      world: w as WorldType,
+      decimalMission,
+      difficulty,
+      seed: s
+    };
+  };
+
+  const generateWorksheet = (code: string, count: number) => {
+    const parsed = parseSeedCode(code);
+    if (!parsed) return;
+    
+    const rng = mulberry32(parsed.seed);
+    const newProblems: Problem[] = [];
+    const opts: GameOptions = {
+      ...initialOptions,
+      world: parsed.world,
+      decimalMission: parsed.decimalMission,
+      difficulty: parsed.difficulty
+    };
+    
+    for (let i = 0; i < count; i++) {
+      newProblems.push(generateProblem(opts, rng));
+    }
+    
+    setProblems(newProblems);
+    setOptions(opts);
+    setSeedCode(code);
+    setInputCode(code);
+  };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const codeFromUrl = urlParams.get('code');
+    if (codeFromUrl) {
+      generateWorksheet(codeFromUrl, problemCount);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      const code = generateSeedCode(initialOptions);
+      generateWorksheet(code, problemCount);
+    }
+  }, []);
+
+  const handleApplyCode = () => {
+    generateWorksheet(inputCode, problemCount);
+  };
+
+  const handleCountChange = (count: number) => {
+    setProblemCount(count);
+    generateWorksheet(seedCode, count);
+  };
+  
+  const handleRegenerate = () => {
+    const code = generateSeedCode(options);
+    generateWorksheet(code, problemCount);
+  };
+
+  const today = new Date().toLocaleDateString('ko-KR');
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?code=' + seedCode)}`;
+
+  return (
+    <div className="flex flex-col h-full bg-white text-black overflow-y-auto print:bg-white print:text-black">
+      {/* Controls (Hidden in Print) */}
+      <div className="print:hidden p-4 bg-gray-100 border-b flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">뒤로가기</button>
+          <div className="flex items-center gap-2">
+            <span>문제 수:</span>
+            {[10, 20, 30, 40].map(c => (
+              <button key={c} onClick={() => handleCountChange(c)} className={`px-3 py-1 rounded ${problemCount === c ? 'bg-blue-600 text-white' : 'bg-white border'}`}>{c}</button>
+            ))}
+          </div>
+          <button onClick={() => setShowAnswers(!showAnswers)} className={`px-4 py-2 rounded text-white ${showAnswers ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
+            {showAnswers ? '정답 숨기기' : '정답 보기'}
+          </button>
+          <button onClick={() => setShowQR(!showQR)} className={`px-4 py-2 rounded text-white ${showQR ? 'bg-orange-500 hover:bg-orange-600' : 'bg-teal-500 hover:bg-teal-600'}`}>
+            {showQR ? 'QR 숨기기' : 'QR 보기'}
+          </button>
+          <button onClick={handleRegenerate} className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">새 문제 생성</button>
+          <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">인쇄하기</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span>코드:</span>
+          <input value={inputCode} onChange={e => setInputCode(e.target.value)} className="border px-2 py-1 rounded w-32" />
+          <button onClick={handleApplyCode} className="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-700">적용</button>
+        </div>
+      </div>
+
+      {/* Worksheet Content */}
+      <div className="p-8 max-w-5xl mx-auto w-full">
+        <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-4">
+          <div>
+            <h1 className="text-3xl font-black mb-2">
+              {options.world === 'FRACTION' ? '분수 배틀 학습지' : '소수 배틀 학습지'}
+            </h1>
+            <p className="text-lg text-gray-700">
+              {options.world === 'FRACTION' ? '1. 대분수 ÷ 자연수' : (() => {
+                const m = DECIMAL_MISSIONS.find(m => m.id === options.decimalMission);
+                return m ? `${m.num}. ${m.title}` : '';
+              })()}
+            </p>
+            <p className="text-gray-600">난이도: {DIFFICULTY_LABELS[options.difficulty].label} | 인쇄일: {today} | 코드: {seedCode}</p>
+          </div>
+          {showQR && (
+            <div className="flex flex-col items-end">
+              <img src={qrUrl} alt="QR Code" className="w-24 h-24 mb-1" />
+              <span className="text-xs text-gray-500">QR로 똑같은 문제지 열기</span>
+            </div>
+          )}
+        </div>
+
+        <h2 className="text-xl font-bold mb-6">다음을 계산하세요.</h2>
+
+        <div className="grid grid-cols-4 gap-x-6 gap-y-12">
+          {problems.map((p, i) => (
+            <div key={i} className="flex items-start break-inside-avoid">
+              <div className="flex-shrink-0 mr-2 mt-1">
+                <div className="w-5 h-5 rounded-full border border-black flex items-center justify-center text-xs font-bold">
+                  {i + 1}
+                </div>
+              </div>
+              
+              <div className="flex flex-col w-full">
+                {p.world === 'FRACTION' && (
+                  <div className="flex items-center gap-2 mb-2 text-base font-sans font-medium">
+                    <div className="flex items-center">
+                      {p.A > 0 && <span>{p.A}</span>}
+                      <div className="flex flex-col items-center ml-1 text-sm">
+                        <span className="border-b border-black leading-none px-1">{p.B}</span>
+                        <span className="leading-none px-1">{p.C}</span>
+                      </div>
+                    </div>
+                    <span>÷</span>
+                    <span>{p.D}</span>
+                    <span>=</span>
+                    {showAnswers && (
+                      <span className="text-blue-600 ml-2">
+                        {(() => {
+                          const num = p.A * p.C + p.B;
+                          const den = p.C * p.D;
+                          const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+                          const common = gcd(num, den);
+                          const sNum = num / common;
+                          const sDen = den / common;
+                          const whole = Math.floor(sNum / sDen);
+                          const rem = sNum % sDen;
+                          if (rem === 0) return whole.toString();
+                          return (
+                            <div className="inline-flex items-center">
+                              {whole > 0 && <span>{whole}</span>}
+                              <div className="flex flex-col items-center ml-1 text-sm">
+                                <span className="border-b border-blue-600 leading-none px-1">{rem}</span>
+                                <span className="leading-none px-1">{sDen}</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                {/* Calculation Area */}
+                {p.world === 'DECIMAL' ? (
+                  <div className="relative inline-block mt-1">
+                    {/* Grid Background */}
+                    <div className="grid" style={{ gridTemplateColumns: `repeat(8, 1.5rem)`, gridTemplateRows: `repeat(8, 1.5rem)` }}>
+                      {Array.from({ length: 8 * 8 }).map((_, idx) => (
+                        <div key={idx} className="border-b border-r border-gray-300 border-dashed box-border" style={{ borderTop: idx < 8 ? '1px dashed #d1d5db' : 'none', borderLeft: idx % 8 === 0 ? '1px dashed #d1d5db' : 'none' }}></div>
+                      ))}
+                    </div>
+                    
+                    {/* Decimal Problem Overlay */}
+                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none grid" style={{ gridTemplateColumns: `repeat(8, 1.5rem)`, gridTemplateRows: `repeat(8, 1.5rem)` }}>
+                      {(() => {
+                        const divStr = p.dividend.toString();
+                        const quoStr = p.quotient.toString();
+                        const divDotIdx = divStr.indexOf('.');
+                        const divIntLen = divDotIdx === -1 ? divStr.length : divDotIdx;
+                        const divDecLen = divDotIdx === -1 ? 0 : divStr.length - divDotIdx - 1;
+                        const quoDotIdx = quoStr.indexOf('.');
+                        const quoDecLen = quoDotIdx === -1 ? 0 : quoStr.length - quoDotIdx - 1;
+                        
+                        const maxIdx = divIntLen - 1;
+                        const minIdx = -Math.max(divDecLen, quoDecLen);
+                        const L = p.divisor.toString().length;
+                        const col0 = L + maxIdx + 1;
+                        
+                        const getCol = (idx: number) => col0 - idx;
+                        
+                        const elements = [];
+                        
+                        // Divisor
+                        p.divisor.toString().split('').forEach((char, i) => {
+                          elements.push(
+                            <div key={`div_${i}`} className="flex items-center justify-center text-base font-sans font-medium" style={{ gridColumnStart: i + 1, gridRowStart: 2 }}>
+                              {char}
+                            </div>
+                          );
+                        });
+                        
+                        // Dividend
+                        let currentIdx = maxIdx;
+                        divStr.split('').forEach((char, i) => {
+                          if (char === '.') {
+                            elements.push(
+                              <div key="div_dot" className="relative" style={{ gridColumnStart: getCol(currentIdx + 1), gridRowStart: 2 }}>
+                                <div className="absolute right-0 bottom-0 translate-x-1/2 -translate-y-[2px] font-bold">.</div>
+                              </div>
+                            );
+                            return;
+                          }
+                          elements.push(
+                            <div key={`d_${i}`} className="flex items-center justify-center text-base font-sans font-medium border-t border-black relative" style={{ gridColumnStart: getCol(currentIdx), gridRowStart: 2 }}>
+                              {currentIdx === maxIdx && (
+                                <svg className="absolute right-full top-[-1px] h-[calc(100%+1px)] w-2.5" viewBox="0 0 10 24" preserveAspectRatio="none">
+                                  <path d="M 10 0.5 L 0 0.5 C 6 0.5 8 4 8 12 C 8 20 6 23.5 0 23.5" fill="none" stroke="black" strokeWidth="1" />
+                                </svg>
+                              )}
+                              {char}
+                            </div>
+                          );
+                          currentIdx--;
+                        });
+                        
+                        if (showAnswers) {
+                          // Quotient
+                          let currentQuoIdx = quoDotIdx === -1 ? quoStr.length - 1 : quoDotIdx - 1;
+                          quoStr.split('').forEach((char, i) => {
+                            if (char === '.') {
+                              elements.push(
+                                <div key="quo_dot" className="relative" style={{ gridColumnStart: getCol(currentQuoIdx + 1), gridRowStart: 1 }}>
+                                  <div className="absolute right-0 bottom-0 translate-x-1/2 -translate-y-[2px] font-bold text-blue-600">.</div>
+                                </div>
+                              );
+                              return;
+                            }
+                            elements.push(
+                              <div key={`q_${i}`} className="flex items-center justify-center text-base font-sans font-medium text-blue-600" style={{ gridColumnStart: getCol(currentQuoIdx), gridRowStart: 1 }}>
+                                {char}
+                              </div>
+                            );
+                            currentQuoIdx--;
+                          });
+                          
+                          // Steps
+                          const rows = getDivisionRows(p.dividend, p.divisor, p.quotient);
+                          rows.forEach((row, rIdx) => {
+                            const gridRow = 3 + rIdx;
+                            row.valStr.split('').forEach((char, i) => {
+                              const digitIdx = row.endIdx + row.valStr.length - 1 - i;
+                              elements.push(
+                                <div key={`r_${rIdx}_${i}`} className={`flex items-center justify-center text-base font-sans font-medium text-blue-600 ${row.type === 'sub' ? 'border-b border-black' : ''}`} style={{ gridColumnStart: getCol(digitIdx), gridRowStart: gridRow }}>
+                                  {char}
+                                </div>
+                              );
+                            });
+                          });
+                        }
+                        
+                        return elements;
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-32 border-2 border-dotted border-gray-300 rounded-lg w-full mt-2"></div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[], time: number, options: GameOptions, mode: GameMode) => void, onWorksheet: (options: GameOptions) => void }) => {
   const getDifficultyDescription = (world: WorldType, fractionMission: FractionMission, decimalMission: DecimalMission, difficulty: Difficulty) => {
     if (world === 'FRACTION') {
       return DIFFICULTY_LABELS[difficulty].desc;
@@ -957,68 +1346,68 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
     switch (decimalMission) {
       case 'DECIMAL_NATURAL_NO_CARRY':
         switch (difficulty) {
-          case 'BRONZE': return '몫: 자연수 1자리.소수 1자리, 나누는 수: 1자리';
-          case 'SILVER': return '몫: 자연수 2자리.소수 1자리, 나누는 수: 1자리';
-          case 'GOLD': return '몫: 자연수 1자리.소수 2자리, 나누는 수: 1자리';
-          case 'PLATINUM': return '몫: 자연수 2자리.소수 2자리, 나누는 수: 1자리';
-          case 'DIAMOND': return '몫: 자연수 1자리.소수 3자리, 나누는 수: 1자리';
-          case 'MASTER': return '몫: 자연수 2자리.소수 3자리, 나누는 수: 1자리';
-          case 'CHALLENGER': return '몫: 자연수 3자리.소수 3자리, 나누는 수: 1자리';
+          case 'BRONZE': return '몫: 자연수 1자리.소수 1자리\n나누는 수: 1자리';
+          case 'SILVER': return '몫: 자연수 2자리.소수 1자리\n나누는 수: 1자리';
+          case 'GOLD': return '몫: 자연수 1자리.소수 2자리\n나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 자연수 2자리.소수 2자리\n나누는 수: 1자리';
+          case 'DIAMOND': return '몫: 자연수 1자리.소수 3자리\n나누는 수: 1자리';
+          case 'MASTER': return '몫: 자연수 2자리.소수 3자리\n나누는 수: 1자리';
+          case 'CHALLENGER': return '몫: 자연수 3자리.소수 3자리\n나누는 수: 1자리';
         }
         break;
       case 'DECIMAL_NATURAL_CARRY':
         switch (difficulty) {
-          case 'BRONZE': return '몫: 자연수 1자리.소수 1자리, 나누는 수: 1자리';
-          case 'SILVER': return '몫: 자연수 2자리.소수 1자리, 나누는 수: 1자리';
-          case 'GOLD': return '몫: 자연수 1자리.소수 2자리, 나누는 수: 1자리';
-          case 'PLATINUM': return '몫: 자연수 2자리.소수 2자리, 나누는 수: 1자리';
-          case 'DIAMOND': return '몫: 자연수 1자리.소수 3자리, 나누는 수: 1자리';
-          case 'MASTER': return '몫: 자연수 2자리.소수 3자리, 나누는 수: 1자리';
-          case 'CHALLENGER': return '몫: 자연수 2자리.소수 2자리, 나누는 수: 2자리';
+          case 'BRONZE': return '몫: 자연수 1자리.소수 1자리\n나누는 수: 1자리';
+          case 'SILVER': return '몫: 자연수 2자리.소수 1자리\n나누는 수: 1자리';
+          case 'GOLD': return '몫: 자연수 1자리.소수 2자리\n나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 자연수 2자리.소수 2자리\n나누는 수: 1자리';
+          case 'DIAMOND': return '몫: 자연수 1자리.소수 3자리\n나누는 수: 1자리';
+          case 'MASTER': return '몫: 자연수 2자리.소수 3자리\n나누는 수: 1자리';
+          case 'CHALLENGER': return '몫: 자연수 2자리.소수 2자리\n나누는 수: 2자리';
         }
         break;
       case 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1':
         switch (difficulty) {
-          case 'BRONZE': return '몫: 0.소수 1자리, 나누는 수: 1자리';
-          case 'SILVER': return '몫: 0.소수 2자리, 나누는 수: 1자리';
-          case 'GOLD': return '몫: 0.소수 3자리, 나누는 수: 1자리';
-          case 'PLATINUM': return '몫: 0.소수 1자리, 나누는 수: 2자리';
-          case 'DIAMOND': return '몫: 0.소수 2자리, 나누는 수: 2자리';
-          case 'MASTER': return '몫: 0.소수 3자리, 나누는 수: 2자리';
-          case 'CHALLENGER': return '몫: 0.소수 4자리, 나누는 수: 2자리';
+          case 'BRONZE': return '몫: 0.소수 1자리\n나누는 수: 1자리';
+          case 'SILVER': return '몫: 0.소수 2자리\n나누는 수: 1자리';
+          case 'GOLD': return '몫: 0.소수 3자리\n나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 0.소수 1자리\n나누는 수: 2자리';
+          case 'DIAMOND': return '몫: 0.소수 2자리\n나누는 수: 2자리';
+          case 'MASTER': return '몫: 0.소수 3자리\n나누는 수: 2자리';
+          case 'CHALLENGER': return '몫: 0.소수 4자리\n나누는 수: 2자리';
         }
         break;
       case 'DECIMAL_NATURAL_BRING_DOWN_ZERO':
         switch (difficulty) {
-          case 'BRONZE': return '나누어지는 수: 소수 1자리, 나누는 수: 1자리';
-          case 'SILVER': return '나누어지는 수: 소수 2자리, 나누는 수: 1자리';
-          case 'GOLD': return '나누어지는 수: 소수 1자리, 나누는 수: 2자리';
-          case 'PLATINUM': return '나누어지는 수: 소수 2자리, 나누는 수: 2자리';
-          case 'DIAMOND': return '나누어지는 수: 소수 3자리, 나누는 수: 2자리';
-          case 'MASTER': return '나누어지는 수: 소수 1자리, 나누는 수: 3자리';
-          case 'CHALLENGER': return '나누어지는 수: 소수 2자리, 나누는 수: 3자리';
+          case 'BRONZE': return '나누어지는 수: 소수 1자리\n나누는 수: 1자리';
+          case 'SILVER': return '나누어지는 수: 소수 2자리\n나누는 수: 1자리';
+          case 'GOLD': return '나누어지는 수: 소수 1자리\n나누는 수: 2자리';
+          case 'PLATINUM': return '나누어지는 수: 소수 2자리\n나누는 수: 2자리';
+          case 'DIAMOND': return '나누어지는 수: 소수 3자리\n나누는 수: 2자리';
+          case 'MASTER': return '나누어지는 수: 소수 1자리\n나누는 수: 3자리';
+          case 'CHALLENGER': return '나누어지는 수: 소수 2자리\n나누는 수: 3자리';
         }
         break;
       case 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT':
         switch (difficulty) {
-          case 'BRONZE': return '몫: 자연수 1자리.0X, 나누는 수: 1자리';
-          case 'SILVER': return '몫: 자연수 2자리.0X, 나누는 수: 1자리';
-          case 'GOLD': return '몫: 자연수 1자리.0XX, 나누는 수: 1자리';
-          case 'PLATINUM': return '몫: 자연수 1자리.0X, 나누는 수: 2자리';
-          case 'DIAMOND': return '몫: 자연수 2자리.0X, 나누는 수: 2자리';
-          case 'MASTER': return '몫: 자연수 1자리.0XX, 나누는 수: 2자리';
-          case 'CHALLENGER': return '몫: 자연수 2자리.0XX, 나누는 수: 2자리';
+          case 'BRONZE': return '몫: 자연수 1자리.0X\n나누는 수: 1자리';
+          case 'SILVER': return '몫: 자연수 2자리.0X\n나누는 수: 1자리';
+          case 'GOLD': return '몫: 자연수 1자리.0XX\n나누는 수: 1자리';
+          case 'PLATINUM': return '몫: 자연수 1자리.0X\n나누는 수: 2자리';
+          case 'DIAMOND': return '몫: 자연수 2자리.0X\n나누는 수: 2자리';
+          case 'MASTER': return '몫: 자연수 1자리.0XX\n나누는 수: 2자리';
+          case 'CHALLENGER': return '몫: 자연수 2자리.0XX\n나누는 수: 2자리';
         }
         break;
       case 'NATURAL_NATURAL':
         switch (difficulty) {
-          case 'BRONZE': return '나누어지는 수: 1자리, 나누는 수: 1자리';
-          case 'SILVER': return '나누어지는 수: 2자리, 나누는 수: 1자리';
-          case 'GOLD': return '나누어지는 수: 1자리, 나누는 수: 2자리';
-          case 'PLATINUM': return '나누어지는 수: 2자리, 나누는 수: 2자리';
-          case 'DIAMOND': return '나누어지는 수: 3자리, 나누는 수: 2자리';
-          case 'MASTER': return '나누어지는 수: 2자리, 나누는 수: 3자리';
-          case 'CHALLENGER': return '나누어지는 수: 3자리, 나누는 수: 3자리';
+          case 'BRONZE': return '나누어지는 수: 1자리\n나누는 수: 1자리';
+          case 'SILVER': return '나누어지는 수: 2자리\n나누는 수: 1자리';
+          case 'GOLD': return '나누어지는 수: 1자리\n나누는 수: 2자리';
+          case 'PLATINUM': return '나누어지는 수: 2자리\n나누는 수: 2자리';
+          case 'DIAMOND': return '나누어지는 수: 3자리\n나누는 수: 2자리';
+          case 'MASTER': return '나누어지는 수: 2자리\n나누는 수: 3자리';
+          case 'CHALLENGER': return '나누어지는 수: 3자리\n나누는 수: 3자리';
         }
         break;
     }
@@ -1138,19 +1527,24 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
             {world === 'FRACTION' ? (
               <button 
                 onPointerDown={(e) => { e.preventDefault(); playSound('click'); setFractionMission('MIXED_NATURAL'); }} 
-                className={`w-full py-3 rounded-xl font-bold text-lg transition-colors touch-none select-none ${fractionMission === 'MIXED_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                className={`w-full py-3 rounded-xl transition-colors touch-none select-none flex items-center text-left ${fractionMission === 'MIXED_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
               >
-                대분수 ÷ 자연수
+                <span className={`px-3 py-1 rounded-lg mr-3 font-black shrink-0 ${fractionMission === 'MIXED_NATURAL' ? 'bg-white text-blue-600' : 'bg-gray-600 text-white'}`}>1</span>
+                <span className="flex-1 font-bold text-lg">대분수 ÷ 자연수</span>
               </button>
             ) : (
               <>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_NO_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_NO_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>1. 소수÷자연수: 몫&gt;1, 각 자리 나누어떨어짐 (예: 6.2÷2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_CARRY'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_CARRY' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>2. 소수÷자연수: 몫&gt;1, 각 자리 나누어떨어지지 않음 (예: 4.23÷3)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>3. 소수÷자연수: 몫&lt;1 (예: 1.24÷2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_BRING_DOWN_ZERO'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_BRING_DOWN_ZERO' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>4. 소수÷자연수: 소수점 아래 0 내려 계산 (예: 2.6÷4)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_NATURAL_ZERO_IN_QUOTIENT'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>5. 소수÷자연수: 몫 소수 첫째 자리에 0 (예: 2.14÷2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('NATURAL_NATURAL'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'NATURAL_NATURAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>6. 자연수÷자연수 (예: 3÷2)</button>
-                <button onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission('DECIMAL_ALL_RANDOM'); }} className={`w-full py-2 rounded-xl font-bold text-sm sm:text-base transition-colors touch-none select-none ${decimalMission === 'DECIMAL_ALL_RANDOM' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>7. 전체 랜덤 (소수 및 자연수)</button>
+                {DECIMAL_MISSIONS.map(m => (
+                  <button 
+                    key={m.id}
+                    onPointerDown={(e) => { e.preventDefault(); playSound('click'); setDecimalMission(m.id); }} 
+                    className={`w-full py-2 rounded-xl transition-colors touch-none select-none flex items-center text-left ${decimalMission === m.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                  >
+                    <span className={`px-3 py-1 rounded-lg ml-2 mr-3 font-black shrink-0 ${decimalMission === m.id ? 'bg-white text-blue-600' : 'bg-gray-600 text-white'}`}>{m.num}</span>
+                    <span className="flex-1 font-bold text-sm sm:text-base">{m.title}</span>
+                    {m.ex && <span className={`ml-2 mr-2 text-sm shrink-0 ${decimalMission === m.id ? 'text-blue-200' : 'text-gray-400'}`}>{m.ex}</span>}
+                  </button>
+                ))}
               </>
             )}
           </div>
@@ -1309,7 +1703,7 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
                   }`}
                 >
                   <span className="text-xs sm:text-base lg:text-lg mb-0.5 sm:mb-1 whitespace-nowrap">{info.emoji} {info.label}</span>
-                  <span className="text-[9px] sm:text-xs opacity-80 font-normal text-center leading-tight break-keep">{getDifficultyDescription(world, fractionMission, decimalMission, d)}</span>
+                  <span className="text-[9px] sm:text-xs opacity-80 font-normal text-center leading-tight break-keep whitespace-pre-line">{getDifficultyDescription(world, fractionMission, decimalMission, d)}</span>
                 </button>
               );
             })}
@@ -1318,12 +1712,20 @@ const MenuScreen = ({ onStart }: { onStart: (players: ActivePlayer[], time: numb
       </div>
       </div>
       
-      <button
-        onPointerDown={(e) => { e.preventDefault(); handleStart(); }}
-        className="px-12 sm:px-20 py-4 sm:py-5 bg-red-600 hover:bg-red-500 text-white rounded-full font-black text-2xl sm:text-3xl shadow-red-600/50 shadow-lg transform transition hover:scale-105 touch-none select-none"
-      >
-        게임 시작!
-      </button>
+      <div className="flex gap-4">
+        <button
+          onPointerDown={(e) => { e.preventDefault(); handleStart(); }}
+          className="px-12 sm:px-20 py-4 sm:py-5 bg-red-600 hover:bg-red-500 text-white rounded-full font-black text-2xl sm:text-3xl shadow-red-600/50 shadow-lg transform transition hover:scale-105 touch-none select-none"
+        >
+          게임 시작!
+        </button>
+        <button
+          onPointerDown={(e) => { e.preventDefault(); onWorksheet({ world, fractionMission, decimalMission, requireIrreducible, requireMixed, difficulty, digitRange, isItemMode }); }}
+          className="px-8 sm:px-12 py-4 sm:py-5 bg-green-600 hover:bg-green-500 text-white rounded-full font-black text-2xl sm:text-3xl shadow-green-600/50 shadow-lg transform transition hover:scale-105 touch-none select-none"
+        >
+          학습지 모드
+        </button>
+      </div>
       
       <div className="mt-8 text-gray-400 font-medium text-center text-sm sm:text-base">
         <p>전자칠판이나 큰 화면에서 1~8명이 한 화면에 나란히 서서 플레이합니다.</p>
@@ -1683,18 +2085,22 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
 
   const getMissionName = () => {
     if (options.world === 'FRACTION') {
-      return '대분수 ÷ 자연수';
+      return (
+        <div className="flex items-center">
+          <span className="bg-blue-800 text-white px-2 py-0.5 rounded mr-2 font-black text-sm">1</span>
+          <span>대분수 ÷ 자연수</span>
+        </div>
+      );
     } else {
-      switch (options.decimalMission) {
-        case 'DECIMAL_NATURAL_NO_CARRY': return '1. 소수÷자연수: 몫>1, 각 자리 나누어떨어짐';
-        case 'DECIMAL_NATURAL_CARRY': return '2. 소수÷자연수: 몫>1, 각 자리 나누어떨어지지 않음';
-        case 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1': return '3. 소수÷자연수: 몫<1';
-        case 'DECIMAL_NATURAL_BRING_DOWN_ZERO': return '4. 소수÷자연수: 소수점 아래 0 내려 계산';
-        case 'DECIMAL_NATURAL_ZERO_IN_QUOTIENT': return '5. 소수÷자연수: 몫 소수 첫째 자리에 0';
-        case 'NATURAL_NATURAL': return '6. 자연수÷자연수';
-        case 'DECIMAL_ALL_RANDOM': return '7. 전체 랜덤 (소수 및 자연수)';
-        default: return '소수 배틀';
-      }
+      const m = DECIMAL_MISSIONS.find(x => x.id === options.decimalMission);
+      if (!m) return <span>소수 배틀</span>;
+      return (
+        <div className="flex items-center">
+          <span className="bg-blue-800 text-white px-2 py-0.5 rounded mr-2 font-black text-sm">{m.num}</span>
+          <span>{m.title}</span>
+          {m.ex && <span className="text-blue-300 ml-2 text-sm">{m.ex}</span>}
+        </div>
+      );
     }
   };
 
@@ -1901,12 +2307,20 @@ const ResultScreen = ({ scores, activePlayers, mode, onRestart }: { scores: Reco
 };
 
 export default function App() {
-  const [gameState, setGameState] = useState<'MENU' | 'COUNTDOWN' | 'PLAYING' | 'RESULT'>('MENU');
+  const [gameState, setGameState] = useState<'MENU' | 'COUNTDOWN' | 'PLAYING' | 'RESULT' | 'WORKSHEET'>('MENU');
   const [duration, setDuration] = useState(60);
   const [activePlayers, setActivePlayers] = useState<ActivePlayer[]>([]);
   const [mode, setMode] = useState<GameMode>('INDIVIDUAL');
   const [options, setOptions] = useState<GameOptions>({ requireIrreducible: false, requireMixed: false, difficulty: 'BRONZE', digitRange: [10, 20], isItemMode: false });
   const [finalScores, setFinalScores] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code && gameState === 'MENU') {
+      setGameState('WORKSHEET');
+    }
+  }, []);
 
   useEffect(() => {
     if (gameState === 'MENU') {
@@ -1937,9 +2351,15 @@ export default function App() {
     setGameState('RESULT');
   };
 
+  const startWorksheet = (opts: GameOptions) => {
+    setOptions(opts);
+    setGameState('WORKSHEET');
+  };
+
   return (
     <div className="w-full h-screen overflow-hidden select-none font-sans bg-black">
-      {gameState === 'MENU' && <MenuScreen onStart={startGame} />}
+      {gameState === 'MENU' && <MenuScreen onStart={startGame} onWorksheet={startWorksheet} />}
+      {gameState === 'WORKSHEET' && <WorksheetScreen initialOptions={options} onBack={() => setGameState('MENU')} />}
       {gameState === 'COUNTDOWN' && (
         <>
           <GameScreen activePlayers={activePlayers} duration={duration} options={options} mode={mode} onEnd={endGame} isPaused={true} />
