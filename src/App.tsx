@@ -1481,17 +1481,16 @@ const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[
   const TEAM_NAMES = ['제외', 'A팀', 'B팀', 'C팀', 'D팀'];
 
   return (
-    <div className="flex flex-col items-center min-h-full bg-gray-900 p-4 overflow-y-auto text-white relative">
-      <div className="my-auto flex flex-col items-center w-full py-16">
-        <button 
-          onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} 
-          className="absolute top-4 right-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors shadow-md touch-none select-none"
-          title="전체 화면"
-        >
-          <Maximize size={24} />
-        </button>
-
-      <input
+    <div className="h-full w-full overflow-y-auto bg-gray-900 text-white relative">
+      <button 
+        onPointerDown={(e) => { e.preventDefault(); toggleFullscreen(); }} 
+        className="fixed top-4 right-4 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 transition-colors shadow-md touch-none select-none z-50"
+        title="전체 화면"
+      >
+        <Maximize size={24} />
+      </button>
+      <div className="min-h-full flex flex-col items-center justify-center p-4 py-16 w-full">
+        <input
         value={subtitle}
         onChange={(e) => {
           setSubtitle(e.target.value);
