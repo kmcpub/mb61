@@ -414,6 +414,13 @@ function generateDecimalProblem(mission: DecimalMission, difficulty: Difficulty,
     } else {
       isValid = dividend % 1 !== 0;
       if (isValid) isValid = quotient % 1 !== 0;
+      if (isValid && mission === 'DECIMAL_NATURAL_QUOTIENT_LESS_THAN_1') {
+        const divDecLen = dividend.toString().includes('.') ? dividend.toString().split('.')[1].length : 0;
+        const quoDecLen = quotient.toString().includes('.') ? quotient.toString().split('.')[1].length : 0;
+        if (divDecLen !== quoDecLen) {
+          isValid = false;
+        }
+      }
     }
   }
 
@@ -1151,7 +1158,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
         <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-4">
           <div>
             <h1 className="text-3xl font-black mb-2">
-              {options.world === 'FRACTION' ? '분수 배틀 학습지' : '소수 배틀 학습지'}
+              {options.world === 'FRACTION' ? '6-1-1 분수 학습지' : '6-1-3 소수 학습지'}
             </h1>
             <p className="text-lg text-gray-700">
               {options.world === 'FRACTION' ? '1. 대분수 ÷ 자연수' : (() => {
@@ -1265,7 +1272,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                           if (char === '.') {
                             elements.push(
                               <div key="div_dot" className="relative" style={{ gridColumnStart: getCol(currentIdx + 1), gridRowStart: 2 }}>
-                                <div className="absolute right-0 bottom-0 translate-x-1/2 -translate-y-[2px] font-bold">.</div>
+                                <div className="absolute right-0 bottom-0 translate-x-1/2 -translate-y-[2px] font-bold scale-200">.</div>
                               </div>
                             );
                             return;
@@ -1290,7 +1297,7 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                             if (char === '.') {
                               elements.push(
                                 <div key="quo_dot" className="relative" style={{ gridColumnStart: getCol(currentQuoIdx + 1), gridRowStart: 1 }}>
-                                  <div className="absolute right-0 bottom-0 translate-x-1/2 -translate-y-[2px] font-bold text-blue-600">.</div>
+                                  <div className="absolute right-0 bottom-0 translate-x-1/2 -translate-y-[2px] font-bold text-blue-600 scale-200">.</div>
                                 </div>
                               );
                               return;
@@ -1500,7 +1507,7 @@ const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[
         placeholder="부제목 입력"
       />
       <h1 className="text-4xl sm:text-7xl font-black text-blue-400 mb-8 drop-shadow-md text-center leading-tight w-full max-w-7xl">
-        {world === 'FRACTION' ? '👑 분수 배틀 ⚔️' : '👑 소수 배틀 ⚔️'}
+        {world === 'FRACTION' ? '👑 6-1-1 분수 배틀 ⚔️' : '👑 6-1-3 소수 배틀 ⚔️'}
       </h1>
       
       <div className="flex flex-col lg:flex-row gap-4 w-full max-w-7xl mb-8">
@@ -1512,13 +1519,13 @@ const MenuScreen = ({ onStart, onWorksheet }: { onStart: (players: ActivePlayer[
               onPointerDown={(e) => { e.preventDefault(); playSound('click'); setWorld('FRACTION'); }} 
               className={`flex-1 py-3 rounded-xl font-bold text-xl transition-colors touch-none select-none ${world === 'FRACTION' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
             >
-              분수 배틀
+              6-1-1 분수
             </button>
             <button 
               onPointerDown={(e) => { e.preventDefault(); playSound('click'); setWorld('DECIMAL'); }} 
               className={`flex-1 py-3 rounded-xl font-bold text-xl transition-colors touch-none select-none ${world === 'DECIMAL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
             >
-              소수 배틀
+              6-1-3 소수
             </button>
           </div>
           
@@ -2094,7 +2101,7 @@ const GameScreen = ({ activePlayers, duration, options, mode, onEnd, isPaused }:
       );
     } else {
       const m = DECIMAL_MISSIONS.find(x => x.id === options.decimalMission);
-      if (!m) return <span>소수 배틀</span>;
+      if (!m) return <span>6-1-3 소수 배틀</span>;
       return (
         <div className="flex items-center">
           <span className="bg-blue-800 text-white px-2 py-0.5 rounded mr-2 font-black text-sm">{m.num}</span>
@@ -2327,7 +2334,7 @@ export default function App() {
     if (gameState === 'MENU') {
       document.title = '수학 배틀';
     } else {
-      document.title = options.world === 'FRACTION' ? '분수 배틀' : '소수 배틀';
+      document.title = options.world === 'FRACTION' ? '6-1-1 분수 배틀' : '6-1-3 소수 배틀';
     }
   }, [gameState, options.world]);
 
