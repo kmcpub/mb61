@@ -267,68 +267,74 @@ function generateFraction62Problem(mission: Fraction62Mission, difficulty: Diffi
   let frac2: ProblemFraction = { num: 1, den: 2 };
 
   if (mission === 'SAME_DENOM_DIVISIBLE') {
-    // 2차시: 분모가 같은 (분수)÷(분수) - 분자끼리 나누어떨어짐 (몫은 자연수)
+    // 분모가 같은 (분수)÷(분수) - 분자끼리 나누어떨어짐
     let den = 10;
     let n2 = 1;
     let q = 2;
 
     switch (difficulty) {
       case 'BRONZE':
+        // 차시 도입/익힘 기초: 단위분수(1/d)로 나누어 분자 값만큼 몫이 쏙 떨어지는 경우
         den = pick([3, 4, 5, 6, 7, 8, 9, 10]);
         n2 = 1;
         q = randInt(2, den - 1);
         break;
       case 'SILVER':
-        den = pick([6, 7, 8, 9, 10]);
+        // 익힘 2번 수준: 분모 6~13, 나누는 분자 2 or 3, 한 자리 자연수 몫
+        den = pick([6, 7, 8, 9, 10, 11, 13]);
         n2 = pick([2, 3]);
-        q = randInt(2, Math.floor((den - 1) / n2));
+        q = randInt(2, Math.min(4, Math.floor((den - 1) / n2)));
         break;
       case 'GOLD':
-        den = pick([11, 13, 15, 17, 19]);
-        n2 = pick([2, 3, 4]);
-        q = randInt(2, Math.floor((den - 1) / n2));
-        break;
-      case 'PLATINUM':
-        den = pick([21, 23, 25, 27, 29]);
+        // 익힘 3, 4번 수준: 분모 15~25, 몫 3~6
+        den = pick([15, 17, 19, 21, 23]);
         n2 = pick([2, 3, 4, 5]);
         q = randInt(2, Math.floor((den - 1) / n2));
         break;
-      case 'DIAMOND':
-        den = pick([13, 17, 19, 23, 29]);
+      case 'PLATINUM':
+        // 가분수 포함 나눗셈: 몫 5~10
+        den = pick([11, 13, 15, 17, 19]);
         n2 = pick([2, 3, 4]);
-        q = randInt(5, 10);
+        q = randInt(5, 9);
+        break;
+      case 'DIAMOND':
+        den = pick([21, 23, 27, 29, 31]);
+        n2 = pick([3, 4, 5]);
+        q = randInt(6, 12);
         break;
       case 'MASTER':
-        den = pick([17, 19, 23, 31, 41]);
-        n2 = pick([3, 4, 5]);
-        q = randInt(10, 15);
+        den = pick([31, 37, 41, 43, 47]);
+        n2 = pick([3, 4, 6, 7]);
+        q = randInt(10, 18);
         break;
       case 'CHALLENGER':
-        den = pick([29, 37, 43, 53, 67]);
-        n2 = pick([3, 4, 6, 7]);
-        q = randInt(12, 20);
+        den = pick([53, 59, 61, 71, 83]);
+        n2 = pick([4, 6, 7, 8]);
+        q = randInt(15, 30);
         break;
     }
     const n1 = n2 * q;
     frac1 = { num: n1, den };
     frac2 = { num: n2, den };
   } else if (mission === 'SAME_DENOM_INDIVISIBLE') {
-    // 3차시: 분모가 같은 (분수)÷(분수) - 분자끼리 나누어떨어지지 않음
+    // 분모가 같은 (분수)÷(분수) - 분자끼리 나누어떨어지지 않음
     let den = 7;
-    let n1 = 5;
-    let n2 = 2;
+    let n1 = 3;
+    let n2 = 4;
 
     switch (difficulty) {
       case 'BRONZE':
-        den = pick([5, 7, 8, 9, 10, 11]);
+        // 차시 기초 (익힘 2-(1)번): 몫이 기약 진분수로 바로 떨어지는 경우 (n1 < n2)
+        den = pick([5, 6, 7, 8, 9, 10, 11]);
         n2 = randInt(3, den - 1);
-        n1 = randInt(1, n2 - 1);
-        while (n2 % n1 === 0 && n1 !== 1) {
+        n1 = randInt(2, n2 - 1);
+        while (n2 % n1 === 0) {
           n1 = randInt(1, n2 - 1);
         }
         break;
       case 'SILVER':
-        den = pick([7, 8, 9, 10]);
+        // 차시 기초 (익힘 1, 2-(2)번): 몫이 간단한 대분수 (1 < 몫 < 3)
+        den = pick([7, 8, 9, 10, 11]);
         n2 = randInt(2, 4);
         n1 = randInt(n2 + 1, den - 1);
         while (n1 % n2 === 0) {
@@ -336,21 +342,23 @@ function generateFraction62Problem(mission: Fraction62Mission, difficulty: Diffi
         }
         break;
       case 'GOLD':
-        den = pick([11, 13, 14, 15, 17, 19]);
-        n2 = pick([3, 4, 5]);
+        // 익힘 4, 5번: 분모 11~20, 서로소 대분수 몫
+        den = pick([11, 13, 14, 15, 17, 19, 20]);
+        n2 = pick([3, 4, 5, 7]);
         n1 = randInt(n2 + 1, den - 1);
         while (n1 % n2 === 0 || gcd(n1, n2) > 1) {
           n1 = randInt(n2 + 1, den - 1);
         }
         break;
       case 'PLATINUM':
+        // 약분이 필요한 대분수 몫 (공약수 존재)
         den = pick([12, 14, 15, 16, 18, 20]);
         const g = pick([2, 3]);
         const k2 = pick([2, 3]);
         const k1 = pick([k2 + 1, k2 + 2, k2 + 3]);
         n1 = k1 * g;
         n2 = k2 * g;
-        if (n1 >= den) den = n1 + randInt(1, 5);
+        if (n1 >= den) den = n1 + randInt(1, 4);
         break;
       case 'DIAMOND':
         den = pick([15, 17, 19, 21, 23]);
@@ -372,28 +380,32 @@ function generateFraction62Problem(mission: Fraction62Mission, difficulty: Diffi
     frac1 = { num: n1, den };
     frac2 = { num: n2, den };
   } else if (mission === 'DIFF_DENOM') {
-    // 4차시: 분모가 다른 (분수)÷(분수) - 통분하여 계산
-    let d1 = 4, d2 = 7, n1 = 3, n2 = 4;
+    // 분모가 다른 (분수)÷(분수) - 통분하여 계산
+    let d1 = 4, d2 = 8, n1 = 3, n2 = 1;
     switch (difficulty) {
       case 'BRONZE':
-        d1 = pick([3, 4, 5, 7]);
+        // 차시 기초 (익힘 1번): 배수 관계 분모 & 단위분수로 나누기 (예: 3/4 ÷ 1/8 = 6, 3/5 ÷ 1/10 = 6)
+        d1 = pick([3, 4, 5, 6, 7]);
         d2 = d1 * pick([2, 3]);
-        n2 = pick([1, 2]);
-        n1 = pick([2, 3, 4]);
+        n1 = randInt(2, d1 - 1);
+        n2 = 1; // 단위분수
         break;
       case 'SILVER':
+        // 익힘 2번: 배수 관계 분모 & 일반 분수 (예: 6/7 ÷ 3/14 = 4, 7/18 ÷ 4/9 = 7/8)
         d1 = pick([3, 4, 5, 6, 7]);
         d2 = d1 * pick([2, 3]);
         n1 = randInt(1, d1 - 1);
-        n2 = randInt(1, d2 - 1);
+        n2 = randInt(2, d2 - 1);
         break;
       case 'GOLD':
+        // 익힘 3번: 서로소 분모 통분 (예: 4/7 ÷ 3/5 = 20/21, 3/4 ÷ 4/7 = 1 5/16)
         d1 = pick([3, 4, 5, 7]);
         d2 = pick([4, 5, 7, 9].filter(x => x !== d1 && gcd(x, d1) === 1));
         n1 = randInt(1, d1 - 1);
         n2 = randInt(1, d2 - 1);
         break;
       case 'PLATINUM':
+        // 최소공배수로 통분해야 하는 공약수 분모 (예: 5/6 ÷ 3/8 = 2 2/9)
         const gP = pick([2, 3, 4]);
         d1 = gP * pick([2, 3, 5]);
         d2 = gP * pick([3, 4, 5].filter(x => gP * x !== d1));
@@ -422,25 +434,29 @@ function generateFraction62Problem(mission: Fraction62Mission, difficulty: Diffi
     frac1 = { num: n1, den: d1 };
     frac2 = { num: n2, den: d2 };
   } else if (mission === 'NATURAL_DIV_FRAC') {
-    // 5차시: (자연수) ÷ (분수)
-    let N = 6, n = 2, d = 3;
+    // (자연수) ÷ (분수)
+    let N = 5, n = 1, d = 6;
     switch (difficulty) {
       case 'BRONZE':
-        N = randInt(2, 9);
+        // 차시 기초 (익힘 2-(1)번): (자연수) ÷ (단위분수) -> N * d (예: 5 ÷ 1/6 = 30, 4 ÷ 1/3 = 12)
+        N = randInt(2, 7);
         n = 1;
-        d = pick([3, 4, 5, 6, 7, 8, 9]);
+        d = pick([3, 4, 5, 6, 7]);
         break;
       case 'SILVER':
+        // 차시 원리 (익힘 1번, 지도서 18쪽): 자연수가 분자로 나누어떨어짐 -> (N÷n)*d (예: 6 ÷ 2/3 = 9, 8 ÷ 4/5 = 10)
         n = pick([2, 3, 4]);
         N = n * randInt(2, 5);
-        d = pick([3, 5, 7, 9].filter(x => x > n));
+        d = pick([3, 5, 7, 8, 9].filter(x => x > n));
         break;
       case 'GOLD':
+        // 익힘 3번: 두 자리 자연수 몫 (예: 21 ÷ 7/8 = 24, 18 ÷ 9/11 = 22, 14 ÷ 7/10 = 20)
         n = pick([3, 4, 7, 8, 9]);
         N = n * randInt(2, 4);
         d = pick([10, 11, 13, 15, 17].filter(x => x > n));
         break;
       case 'PLATINUM':
+        // 몫이 대분수인 자연수 ÷ 분수 (예: 7 ÷ 2/3 = 10 1/2)
         n = pick([3, 4, 5, 7]);
         N = randInt(3, 10);
         while (N % n === 0) N++;
@@ -465,37 +481,39 @@ function generateFraction62Problem(mission: Fraction62Mission, difficulty: Diffi
     frac1 = { whole: N, num: 0, den: 1 };
     frac2 = { num: n, den: d };
   } else if (mission === 'FRAC_DIV_FRAC_MULT') {
-    // 6차시: (분수)÷(분수)를 분수의 곱셈으로 나타내어 계산
+    // (분수)÷(분수)를 분수의 곱셈으로 나타내어 계산
     let n1 = 8, d1 = 21, n2 = 2, d2 = 7;
     switch (difficulty) {
       case 'BRONZE':
+        // 차시 기초 (지도서 21쪽, 익힘 4번): 곱셈으로 바꿨을 때 1회 대각선 약분이 깔끔하게 되는 형태
+        // 예: 8/21 ÷ 2/7 = 8/21 * 7/2 = 4/3 = 1 1/3, 5/12 ÷ 5/6 = 1/2, 3/10 ÷ 2/5 = 3/4
         const g1 = pick([2, 3, 5, 7]);
         d2 = g1;
-        d1 = g1 * pick([2, 3, 4]);
-        n1 = randInt(1, d1 - 1);
-        n2 = pick([1, 2, 3]);
-        while (n1 % n2 === 0) n1++;
-        if (n1 >= d1) n1 = d1 - 1;
+        d1 = g1 * pick([2, 3]);
+        n2 = pick([2, 3, 4]);
+        n1 = n2 * pick([2, 3]);
         break;
       case 'SILVER':
+        // 익힘 2-(1)번: 약분 없이 진분수 곱으로 바로 끝나는 형태 (예: 1/8 ÷ 5/9 = 9/40, 3/7 ÷ 4/11 = 33/28 = 1 5/28)
+        d1 = pick([5, 7, 8, 10]);
+        d2 = pick([3, 9, 11].filter(x => gcd(x, d1) === 1));
+        n1 = randInt(1, d1 - 1);
+        n2 = randInt(2, d2 - 1);
+        while (gcd(n1, n2) > 1 || gcd(n1, d2) > 1 || gcd(n2, d1) > 1) {
+          n1 = randInt(1, d1 - 1);
+          n2 = randInt(2, d2 - 1);
+        }
+        break;
+      case 'GOLD':
+        // 2회 약분 (양쪽 대각선 모두 약분) (예: 9/16 ÷ 3/4 = 3/4, 14/25 ÷ 7/10 = 4/5)
         const ga = pick([2, 3, 4]);
         const gb = pick([3, 5, 7]);
-        n1 = ga * pick([1, 2]);
-        d1 = gb * pick([2, 3]);
+        n1 = ga * pick([1, 2, 3]);
+        d1 = gb * pick([2, 3, 4]);
         n2 = ga * pick([1, 2]);
         d2 = gb * pick([1, 2]);
         if (n1 >= d1) n1 = d1 - 1;
         if (n2 >= d2) n2 = d2 - 1;
-        break;
-      case 'GOLD':
-        d1 = pick([5, 7, 10]);
-        d2 = pick([3, 11, 13]);
-        n1 = pick([2, 3, 4]);
-        n2 = pick([3, 4, 5]);
-        while (gcd(n1, n2) > 1 || gcd(n1, d1) > 1 || gcd(n2, d2) > 1 || gcd(n1, d2) > 1 || gcd(n2, d1) > 1) {
-          n1 = randInt(2, d1 - 1);
-          n2 = randInt(2, d2 - 1);
-        }
         break;
       case 'PLATINUM':
         d1 = pick([12, 15, 16, 18]);
@@ -525,23 +543,41 @@ function generateFraction62Problem(mission: Fraction62Mission, difficulty: Diffi
     frac1 = { num: n1, den: d1 };
     frac2 = { num: n2, den: d2 };
   } else if (mission === 'MIXED_DIV_FRAC') {
-    // 7차시: (대분수) ÷ (분수)
+    // (대분수) ÷ (분수)
     switch (difficulty) {
       case 'BRONZE':
-        frac1 = { whole: pick([1, 2, 4]), num: 1, den: 2 };
-        frac2 = { num: pick([1, 3]), den: 4 };
+        // 차시 기초 (지도서 22쪽): 대분수 ÷ 진분수, 가분수로 바꾸었을 때 딱 떨어지는 자연수 몫!
+        // 예: 4 1/2 ÷ 3/4 = 9/2 ÷ 3/4 = 6, 1 1/2 ÷ 3/4 = 2, 2 1/3 ÷ 7/9 = 3
+        const baseSet = pick([
+          { w: 4, n: 1, d: 2, n2: 3, d2: 4 }, // 9/2 ÷ 3/4 = 6
+          { w: 1, n: 1, d: 2, n2: 3, d2: 4 }, // 3/2 ÷ 3/4 = 2
+          { w: 2, n: 1, d: 3, n2: 7, d2: 9 }, // 7/3 ÷ 7/9 = 3
+          { w: 1, n: 1, d: 4, n2: 5, d2: 8 }, // 5/4 ÷ 5/8 = 2
+          { w: 3, n: 1, d: 2, n2: 7, d2: 10 } // 7/2 ÷ 7/10 = 5
+        ]);
+        frac1 = { whole: baseSet.w, num: baseSet.n, den: baseSet.d };
+        frac2 = { num: baseSet.n2, den: baseSet.d2 };
         break;
       case 'SILVER':
+        // 익힘 2-(1)번: 대분수 ÷ 진분수, 몫이 대분수 (예: 1 1/3 ÷ 5/8 = 2 2/15, 2 1/4 ÷ 3/7 = 5 1/4)
         frac1 = { whole: randInt(1, 3), num: pick([1, 2, 3]), den: pick([3, 4, 5, 7]) };
         if (frac1.num >= frac1.den) frac1.num = frac1.den - 1;
         frac2 = { num: pick([2, 3, 4]), den: pick([5, 6, 7, 8]) };
         if (frac2.num >= frac2.den) frac2.num = frac2.den - 1;
         break;
       case 'GOLD':
-        frac1 = { whole: pick([3, 4, 10]), num: 1, den: 2 };
-        frac2 = { whole: 1, num: pick([1, 3]), den: 4 };
+        // 지도서 23쪽: 대분수 ÷ 대분수, 자연수 몫 (예: 10 1/2 ÷ 1 3/4 = 21/2 ÷ 7/4 = 6, 3 1/2 ÷ 1 1/6 = 3)
+        const mixedNatSet = pick([
+          { w1: 10, n1: 1, d1: 2, w2: 1, n2: 3, d2: 4 }, // 6
+          { w1: 3, n1: 1, d1: 2, w2: 1, n2: 1, d2: 6 },  // 3
+          { w1: 4, n1: 1, d1: 2, w2: 2, n2: 1, d2: 4 },  // 2
+          { w1: 6, n1: 2, d1: 3, w2: 1, n2: 1, d2: 3 }   // 5
+        ]);
+        frac1 = { whole: mixedNatSet.w1, num: mixedNatSet.n1, den: mixedNatSet.d1 };
+        frac2 = { whole: mixedNatSet.w2, num: mixedNatSet.n2, den: mixedNatSet.d2 };
         break;
       case 'PLATINUM':
+        // 익힘 2-(2)번, 지도서 23쪽: 대분수 ÷ 대분수, 분수 몫 (예: 2 3/4 ÷ 1 1/5 = 2 7/24, 3 3/4 ÷ 1 4/5 = 2 1/12)
         frac1 = { whole: randInt(2, 4), num: pick([1, 2, 3]), den: pick([3, 4, 5]) };
         if (frac1.num >= frac1.den) frac1.num = frac1.den - 1;
         frac2 = { whole: 1, num: pick([1, 2, 3]), den: pick([4, 5, 6]) };
@@ -1774,6 +1810,119 @@ function getDivisionRows(dividend: number, divisor: number, quotient: number): V
   return rows;
 }
 
+const CurvedBlueArrow = ({ spanCols }: { spanCols: number }) => {
+  if (spanCols <= 0) return null;
+  const colWidth = 24; // 1.5rem = 24px
+  const widthPx = spanCols * colWidth;
+  const depth = 8;
+  
+  let pathD = `M 0 0`;
+  for (let i = 0; i < spanCols; i++) {
+    const x1 = i * colWidth;
+    const x2 = (i + 1) * colWidth;
+    pathD += ` C ${x1 + 6} ${depth}, ${x2 - 6} ${depth}, ${x2} -2`;
+  }
+  
+  const tipX = widthPx;
+  const tipY = -2;
+  const angle = -50 * (Math.PI / 180);
+  const len = 5.5;
+  const halfW = 2.2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const backX = tipX - len * cos;
+  const backY = tipY - len * sin;
+  const p1 = `${tipX.toFixed(1)},${tipY.toFixed(1)}`;
+  const p2 = `${(backX - halfW * sin).toFixed(1)},${(backY + halfW * cos).toFixed(1)}`;
+  const p3 = `${(backX + halfW * sin).toFixed(1)},${(backY - halfW * cos).toFixed(1)}`;
+
+  return (
+    <svg 
+      className="absolute pointer-events-none z-30 overflow-visible"
+      style={{ 
+        width: `${widthPx}px`, 
+        height: `${depth + 8}px`,
+        left: '0px',
+        top: '0px',
+      }}
+      viewBox={`0 0 ${widthPx} ${depth + 8}`}
+    >
+      <path d={pathD} fill="none" stroke="#0090e7" strokeWidth="1.6" strokeLinecap="round" />
+      <polygon points={`${p1} ${p2} ${p3}`} fill="#0090e7" />
+    </svg>
+  );
+};
+
+function getDivisionRows62(dividend: number, divisor: number, effectiveQuotient: number, isRemainder: boolean): VisualRow[] {
+  const divisStr = divisor.toString();
+  const divisDotIdx = divisStr.indexOf('.');
+  const shift = divisDotIdx === -1 ? 0 : divisStr.length - divisDotIdx - 1;
+  
+  const scaledDivisor = Math.round(divisor * Math.pow(10, shift));
+  
+  const dividStr = dividend.toString();
+  const dividDotIdx = dividStr.indexOf('.');
+  const dividIntLen = dividDotIdx === -1 ? dividStr.length : dividDotIdx;
+  const dividDecLen = dividDotIdx === -1 ? 0 : dividStr.length - dividDotIdx - 1;
+  
+  const shiftedIntLen = dividIntLen + shift;
+  
+  const quoStr = effectiveQuotient.toString();
+  const quoDotIdx = quoStr.indexOf('.');
+  const quoDecLen = quoDotIdx === -1 ? 0 : quoStr.length - quoDotIdx - 1;
+  
+  const maxIdx = shiftedIntLen - 1;
+  const minIdx = isRemainder ? 0 : -Math.max(dividDecLen > shift ? dividDecLen - shift : 0, quoDecLen);
+  
+  let currentVal = 0;
+  let rows: VisualRow[] = [];
+  let hasStarted = false;
+  
+  const getShiftedDigit = (idx: number): number => {
+    const origIdx = idx - shift;
+    if (origIdx >= 0) {
+      if (origIdx < dividIntLen) {
+        return parseInt(dividStr[dividIntLen - 1 - origIdx], 10);
+      }
+      return 0;
+    } else {
+      const decPos = -origIdx;
+      if (decPos <= dividDecLen) {
+        return parseInt(dividStr[dividDotIdx + decPos], 10);
+      }
+      return 0;
+    }
+  };
+  
+  for (let idx = maxIdx; idx >= minIdx; idx--) {
+    const digit = getShiftedDigit(idx);
+    currentVal = currentVal * 10 + digit;
+    
+    if (hasStarted) {
+      rows.push({ type: 'rem', valStr: currentVal.toString(), endIdx: idx });
+    }
+    
+    let qDigit = Math.floor(currentVal / scaledDivisor);
+    let subVal = qDigit * scaledDivisor;
+    
+    if (qDigit > 0 || hasStarted) {
+      if (!hasStarted && qDigit === 0) {
+        // Skip leading zero
+      } else {
+        hasStarted = true;
+        rows.push({ type: 'sub', valStr: subVal.toString(), endIdx: idx });
+        currentVal = currentVal - subVal;
+        
+        if (idx === minIdx) {
+          rows.push({ type: 'rem', valStr: currentVal.toString(), endIdx: idx });
+        }
+      }
+    }
+  }
+  
+  return rows;
+}
+
 const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptions, onBack: () => void }) => {
   const [problemCount, setProblemCount] = useState(20);
   const [showAnswers, setShowAnswers] = useState(false);
@@ -2076,33 +2225,197 @@ const WorksheetScreen = ({ initialOptions, onBack }: { initialOptions: GameOptio
                   </div>
                 )}
 
-                {/* 6-2-2 소수의 나눗셈 */}
+                {/* 6-2-2 소수의 나눗셈 Calculation Area (Grid) */}
                 {p.world === 'DECIMAL_6_2' && (
                   <div className="flex flex-col w-full">
-                    <div className="flex items-center gap-1.5 mb-2 text-base font-sans font-medium flex-wrap">
+                    <div className="flex items-center gap-1.5 mb-1 text-sm font-sans font-medium flex-wrap">
                       {p.roundDesc && (
-                        <span className="text-[11px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded mr-1">
+                        <span className="text-[11px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
                           {p.roundDesc} 반올림
                         </span>
                       )}
                       {p.isRemainderProblem && (
-                        <span className="text-[11px] text-cyan-800 bg-cyan-100 px-1.5 py-0.5 rounded mr-1">
-                          남는 양
+                        <span className="text-[11px] text-cyan-800 bg-cyan-100 px-1.5 py-0.5 rounded font-bold">
+                          남는 양 구하기
                         </span>
                       )}
-                      <span>{p.dividend}</span>
-                      <span>÷</span>
-                      <span>{p.divisor}</span>
+                      <span>{p.dividend} ÷ {p.divisor}</span>
                       <span>{p.roundDesc ? '≈' : (p.isRemainderProblem ? '의 남는 양 =' : '=')}</span>
                       {showAnswers && (
-                        <span className="text-blue-600 ml-2 font-bold">
+                        <span className="text-blue-600 font-bold ml-1">
                           {p.isRemainderProblem ? `${p.remainder} (몫:${p.naturalQuotient})` : p.quotient}
                         </span>
                       )}
                     </div>
-                    <div className="h-32 border-2 border-dotted border-gray-300 rounded-lg w-full mt-1 flex flex-col justify-end p-2 text-xs text-gray-400">
-                      <div className="border-t border-gray-200 pt-1 text-right">
-                        답: ______________
+
+                    <div className="relative inline-block mt-1">
+                      {/* Grid Background */}
+                      <div className="grid" style={{ gridTemplateColumns: `repeat(9, 1.5rem)`, gridTemplateRows: `repeat(8, 1.5rem)` }}>
+                        {Array.from({ length: 9 * 8 }).map((_, idx) => (
+                          <div key={idx} className="border-b border-r border-gray-300 border-dashed box-border" style={{ borderTop: idx < 9 ? '1px dashed #d1d5db' : 'none', borderLeft: idx % 9 === 0 ? '1px dashed #d1d5db' : 'none' }}></div>
+                        ))}
+                      </div>
+
+                      {/* Decimal 6-2 Problem & Solution Overlay */}
+                      <div className="absolute top-0 left-0 w-full h-full pointer-events-none grid" style={{ gridTemplateColumns: `repeat(9, 1.5rem)`, gridTemplateRows: `repeat(8, 1.5rem)` }}>
+                        {(() => {
+                          const divisRaw = (p.divisor || 0).toString();
+                          const dividRaw = (p.dividend || 0).toString();
+
+                          const divisDotIdx = divisRaw.indexOf('.');
+                          const shift = divisDotIdx === -1 ? 0 : divisRaw.length - divisDotIdx - 1;
+
+                          const divisDigits = divisRaw.replace('.', '');
+                          const L_divis = divisDigits.length;
+
+                          const dividDotIdx = dividRaw.indexOf('.');
+                          const dividIntLen = dividDotIdx === -1 ? dividRaw.length : dividDotIdx;
+                          const dividDecLen = dividDotIdx === -1 ? 0 : dividRaw.length - dividDotIdx - 1;
+
+                          const dividDigits = dividRaw.replace('.', '');
+                          const L_divid = dividDigits.length;
+
+                          const padZeros = Math.max(0, shift - dividDecLen);
+
+                          const totalCols = L_divis + L_divid + padZeros;
+                          const startDivisCol = totalCols <= 5 ? 2 : 1;
+                          const startDividCol = startDivisCol + L_divis;
+                          const shiftedCol0 = startDividCol + dividIntLen - 1 + shift;
+
+                          const getCol = (shiftedIdx: number) => shiftedCol0 - shiftedIdx;
+
+                          const elements = [];
+
+                          // 1. Divisor digits
+                          divisDigits.split('').forEach((char, i) => {
+                            const col = startDivisCol + i;
+                            elements.push(
+                              <div key={`divis_d_${i}`} className="flex items-center justify-center text-base font-sans font-medium" style={{ gridColumnStart: col, gridRowStart: 2 }}>
+                                {char}
+                              </div>
+                            );
+                          });
+
+                          // Divisor original dot & curved blue arrow
+                          if (divisDotIdx !== -1) {
+                            const origDotCol = startDivisCol + divisDotIdx - 1;
+                            elements.push(
+                              <div key="divis_orig_dot" className="relative w-full h-full pointer-events-none" style={{ gridColumnStart: origDotCol, gridRowStart: 2 }}>
+                                <div className="absolute rounded-full bg-black" style={{ width: '3.5px', height: '3.5px', right: '-1.75px', bottom: '3.5px' }} />
+                                {showAnswers && shift > 0 && (
+                                  <div className="absolute" style={{ right: '0px', bottom: '1px' }}>
+                                    <CurvedBlueArrow spanCols={shift} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          // 2. Dividend digits
+                          dividDigits.split('').forEach((char, i) => {
+                            const col = startDividCol + i;
+                            const isFirst = i === 0;
+                            elements.push(
+                              <div key={`divid_d_${i}`} className="flex items-center justify-center text-base font-sans font-medium border-t border-black relative" style={{ gridColumnStart: col, gridRowStart: 2 }}>
+                                {isFirst && (
+                                  <svg className="absolute left-0 top-[-1px] h-[calc(100%+1px)] w-1.5 overflow-visible" viewBox="0 0 6 24" preserveAspectRatio="none">
+                                    <path d="M 0 0.5 C 3 0.5 5 5 5 12 C 5 19 3 23.5 0 23.5" fill="none" stroke="black" strokeWidth="1" />
+                                  </svg>
+                                )}
+                                {char}
+                              </div>
+                            );
+                          });
+
+                          // Dividend original dot & curved blue arrow
+                          if (dividDotIdx !== -1) {
+                            const origDotCol = startDividCol + dividIntLen - 1;
+                            elements.push(
+                              <div key="divid_orig_dot" className="relative w-full h-full pointer-events-none" style={{ gridColumnStart: origDotCol, gridRowStart: 2 }}>
+                                <div className="absolute rounded-full bg-black" style={{ width: '3.5px', height: '3.5px', right: '-1.75px', bottom: '3.5px' }} />
+                                {showAnswers && shift > 0 && (
+                                  <div className="absolute" style={{ right: '0px', bottom: '1px' }}>
+                                    <CurvedBlueArrow spanCols={shift} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          } else if (showAnswers && shift > 0) {
+                            // Natural dividend with shift > 0 (pad zero arrow)
+                            const origCol = startDividCol + dividIntLen - 1;
+                            elements.push(
+                              <div key="divid_nat_arrow" className="relative w-full h-full pointer-events-none" style={{ gridColumnStart: origCol, gridRowStart: 2 }}>
+                                <div className="absolute" style={{ right: '0px', bottom: '1px' }}>
+                                  <CurvedBlueArrow spanCols={shift} />
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Padded zeros
+                          if (padZeros > 0 && showAnswers) {
+                            for (let z = 0; z < padZeros; z++) {
+                              const zCol = startDividCol + L_divid + z;
+                              elements.push(
+                                <div key={`pad_0_${z}`} className="flex items-center justify-center text-base font-sans font-medium border-t border-black text-gray-400" style={{ gridColumnStart: zCol, gridRowStart: 2 }}>
+                                  0
+                                </div>
+                              );
+                            }
+                          }
+
+                          // 3. Solution (Quotient & Steps)
+                          if (showAnswers) {
+                            const effectiveQuo = p.isRemainderProblem && p.naturalQuotient !== undefined ? p.naturalQuotient : (p.quotient || 0);
+                            const quoStr = effectiveQuo.toString();
+                            const quoDotIdx = quoStr.indexOf('.');
+                            const quoIntLen = quoDotIdx === -1 ? quoStr.length : quoDotIdx;
+
+                            // Quotient digits in Row 1
+                            let qCol = shiftedCol0 - quoIntLen + 1;
+                            quoStr.split('').forEach((char, i) => {
+                              if (char === '.') {
+                                elements.push(
+                                  <div key="quo_dot" className="relative w-full h-full pointer-events-none" style={{ gridColumnStart: qCol - 1, gridRowStart: 1 }}>
+                                    <div className="absolute rounded-full bg-[#0090e7]" style={{ width: '3.5px', height: '3.5px', right: '-1.75px', bottom: '3.5px' }} />
+                                  </div>
+                                );
+                                return;
+                              }
+                              elements.push(
+                                <div key={`quo_${i}`} className="flex items-center justify-center text-base font-sans font-medium text-[#0090e7]" style={{ gridColumnStart: qCol, gridRowStart: 1 }}>
+                                  {char}
+                                </div>
+                              );
+                              qCol++;
+                            });
+
+                            // Steps Rows
+                            const rows = getDivisionRows62(p.dividend || 0, p.divisor || 0, effectiveQuo, !!p.isRemainderProblem);
+                            rows.forEach((row, rIdx) => {
+                              const gridRow = 3 + rIdx;
+                              row.valStr.split('').forEach((char, i) => {
+                                const digitIdx = row.endIdx + row.valStr.length - 1 - i;
+                                elements.push(
+                                  <div key={`r62_${rIdx}_${i}`} className={`flex items-center justify-center text-base font-sans font-medium text-[#0090e7] ${row.type === 'sub' ? 'border-b border-[#0090e7]' : ''}`} style={{ gridColumnStart: getCol(digitIdx), gridRowStart: gridRow }}>
+                                    {char}
+                                  </div>
+                                );
+                              });
+                            });
+
+                            if (p.isRemainderProblem && p.remainder !== undefined) {
+                              const remRow = 3 + rows.length;
+                              elements.push(
+                                <div key="rem_label" className="col-span-9 text-xs text-[#0090e7] font-bold mt-1 text-right" style={{ gridColumnStart: 1, gridColumnEnd: 10, gridRowStart: remRow }}>
+                                  남는 양: {p.remainder}
+                                </div>
+                              );
+                            }
+                          }
+
+                          return elements;
+                        })()}
                       </div>
                     </div>
                   </div>
